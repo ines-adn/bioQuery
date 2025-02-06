@@ -1,0 +1,9 @@
+# Ignorer les fichiers de configuration
+
+# Ignorer les fichiers d'environnement
+.env
+.env.local
+.python-version
+.venv
+
+# Ignorer les corpus de texte
