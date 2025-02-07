@@ -1,0 +1,1 @@
+ # Pipeline pour nettoyer et indexer les articles

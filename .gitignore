@@ -7,3 +7,5 @@
 .venv
 
 # Ignorer les corpus de texte
+data/
+articles/
