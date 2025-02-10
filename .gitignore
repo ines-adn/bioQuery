@@ -9,3 +9,6 @@
 # Ignorer les corpus de texte
 data/
 articles/
+
+# Ignorer les fichiers ipynb
+*.ipynb
