@@ -74,6 +74,8 @@ def download_pdf(pdf_url, save_path="article.pdf"):
 # Recherche des articles sur Semantic Scholar
 def search_semantic_scholar(query, num_results=3):
     """ Recherche des articles sur Semantic Scholar et retourne leurs informations. """
+    # URL de l'API
+    API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
     params = {
         "query": query,
         "limit": num_results,  # Limiter à 3 résultats
@@ -97,50 +99,53 @@ def search_semantic_scholar(query, num_results=3):
     
     return []
 
-# URL de l'API
-API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 
-# Charger la configuration
-config = load_config()
 
-# Utilisation de la classe pour effectuer une recherche
-ingredient = "Aloe Vera"
-allegation = "hydratant"
-search_tool = SemanticScolarSearch(ingredient, allegation)
-query = search_tool.generate_query()
+def search_and_download_from_semantic_scholars(ingredient, allegation):
+    
+    """ Lance la recherche et télécharge les articles. """
+    config = load_config()
+    if not config:
+        return {"error": "Configuration invalide"}
 
-if config:
-    base_dir = config.get("base_dir", "")  # Récupérer le chemin de base
-    if base_dir:
-        # Création du dossier avec le nom "nettoyé" pour la query
-        folder_name = query.replace(" ", "_").lower()  # Remplacer les espaces par des underscores et convertir en minuscule
-        folder_path = os.path.join(base_dir, "backend", "corpus-retrieval", "data", "articles", folder_name)
+    search_tool = SemanticScolarSearch(ingredient, allegation)
+    query = search_tool.generate_query()
+    base_dir = config.get("base_dir", "")
 
-        # Créer le dossier si nécessaire
-        os.makedirs(folder_path, exist_ok=True)
-        print(f"Dossier créé ou déjà existant : {folder_path}")
+    if not base_dir:
+        return {"error": "Chemin base_dir non défini"}
 
-        # Recherche d'articles
-        articles = search_semantic_scholar(query, num_results=3)
+    folder_name = query.replace(" ", "_").lower()
+    folder_path = os.path.join(base_dir, "backend", "corpus-retrieval", "data", "articles", folder_name)
+    os.makedirs(folder_path, exist_ok=True)
 
-        if articles:
-            for i, article in enumerate(articles, 1):
-                print(f"\n📄 Article {i}")
-                print(f"📌 Titre : {article['title']}")
-                print(f"🔗 URL : {article['url']}")
-                
-                # 📥 Téléchargement du PDF si disponible
-                open_access_pdf = article.get("openAccessPdf", None)
-                pdf_url = open_access_pdf.get("url", "") if open_access_pdf else ""
-                
-                if pdf_url:
-                    save_path = os.path.join(folder_path, f"article_{i}.pdf")
-                    download_pdf(pdf_url, save_path=save_path)
-                else:
-                    print("⚠️ Aucun PDF disponible.")
+    articles = search_semantic_scholar(query, num_results=3)
+    results = []
+
+    for i, article in enumerate(articles, 1):
+        result = {"title": article["title"], "url": article["url"]}
+        pdf_url = article.get("openAccessPdf")
+        if pdf_url and isinstance(pdf_url, dict):
+            pdf_url = pdf_url.get("url", "")
         else:
-            print("Aucun article trouvé.")
-    else:
-        print("Le chemin de base n'est pas défini dans config.json.")
-else:
-    print("La configuration a échoué. Veuillez vérifier le fichier config.json.")
+            pdf_url = ""
+
+        if pdf_url:
+            save_path = os.path.join(folder_path, f"article_{i}.pdf")
+            download_pdf(pdf_url, save_path)
+            result["pdf"] = save_path
+        else:
+            result["pdf"] = None
+
+        results.append(result)
+
+    if not articles:
+        return {"error": "Aucun article trouvé pour la requête donnée."}
+    
+    return [{"number": i, "title": article["title"], "url": article["url"]} for i, article in enumerate(articles, 1)]
+
+if __name__ == "__main__":
+    ingredient = input("Ingrédient : ")
+    allegation = input("Allégation : ")
+    results = search_and_download_from_semantic_scholars(ingredient, allegation)
+    print(results)
