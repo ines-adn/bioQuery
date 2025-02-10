@@ -27,3 +27,17 @@ async def search_pubmed(ingredient: str, allegation: str):
     """ Recherche des articles sur PubMed. """
     results = search_and_download_from_pubmed(ingredient, allegation)
     return {"results": results}
+
+@app.get("/search/both/")
+async def search_both(ingredient: str, allegation: str):
+    """ Recherche des articles sur Semantic Scholars et PubMed. """
+    semantic_results = search_and_download_from_semantic_scholars(ingredient, allegation)
+    pubmed_results = search_and_download_from_pubmed(ingredient, allegation)
+    
+    # Combiner les résultats des deux recherches
+    all_results = {
+        "semantic_scholars": semantic_results,
+        "pubmed": pubmed_results
+    }
+
+    return {"results": all_results}
