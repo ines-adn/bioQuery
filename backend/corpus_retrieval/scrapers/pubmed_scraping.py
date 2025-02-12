@@ -140,5 +140,5 @@ def search_and_download_from_pubmed(ingredient,allegation):
 if __name__ == "__main__":
     ingredient = input("Entrez l'ingrédient : ")
     allegation = input("Entrez l'allégation : ")
-    results = search_and_download_from_pubmed("Aloe Vera", "hydrating")
+    results = search_and_download_from_pubmed(ingredient, allegation)
     print(results)

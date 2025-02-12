@@ -1,12 +1,20 @@
 import React, { useState } from "react";
 import "./App.css";
+interface Result {
+  title: string;
+  authors: string[];
+  abstract: string;
+  // Add other fields as necessary
+}
 
 function App() {
   const [ingredient, setIngredient] = useState("");
   const [allegation, setAllegation] = useState("");
   const [useSemantic, setUseSemantic] = useState(false);
   const [usePubmed, setUsePubmed] = useState(false);
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<Result[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSearch = async () => {
     const params = new URLSearchParams();
@@ -14,6 +22,7 @@ function App() {
     params.append("allegation", allegation);
 
     let url = "";
+    console.log("Fetching data from:", url);
 
     if (useSemantic && usePubmed) {
       url = `/search/both/?${params.toString()}`;
@@ -23,12 +32,27 @@ function App() {
       url = `/search/pubmed/?${params.toString()}`;
     }
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      setResults(data.results);
-    } catch (error) {
-      console.error("Error fetching data:", error);
+    console.log("Fetching data from:", url);
+
+    if (url) {
+      setLoading(true);
+      try {
+        const fullURL = "http://localhost:8000" + url
+        const response = await fetch(fullURL);
+        console.log(response)
+        if (response.ok) {
+          const data = await response.json();
+          setResults(data.results);
+        } else {
+          setError("Error fetching data");
+        }
+      } catch (error) {
+        setError("Error fetching data");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setError("No search method selected.");
     }
   };
 
@@ -81,7 +105,11 @@ function App() {
           </label>
         </div>
 
-        <button onClick={handleSearch}>Chercher</button>
+        <button onClick={handleSearch} disabled={loading}>
+          {loading ? "Chargement..." : "Chercher"}
+        </button>
+
+        {error && <div style={{ color: "red" }}>{error}</div>}
 
         {results && (
           <div>
