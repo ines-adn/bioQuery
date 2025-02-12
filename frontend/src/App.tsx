@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import "./App.css";
 interface Result {
+  number: Int16Array;
   title: string;
-  authors: string[];
-  abstract: string;
+  url: string;
   // Add other fields as necessary
 }
 
@@ -59,7 +59,15 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Recherche d'articles scientifiques</h1>
+      </header>
+      <br></br>
+      <img src="/logo-aroma-zone.png" className="App-logo" alt="logo" />
+      <br></br>
+      <div className="loupe-container">
+        <img src="/loupe-icon.png" className="loupe" alt="loupe" />
+        <span className="loupe-text">Outil de recherches bibliographiques</span>
+      </div>
+        <h2>Recherche d'articles scientifiques</h2>
 
         <div>
           <label>
@@ -111,13 +119,19 @@ function App() {
 
         {error && <div style={{ color: "red" }}>{error}</div>}
 
-        {results && (
-          <div>
+        {results && results.length > 0 && (
+          <div className="results-container">
             <h2>Résultats :</h2>
-            <pre>{JSON.stringify(results, null, 2)}</pre>
-          </div>
+            <ul>
+              {results.map((result, number) => (
+                <li key={number} className="article-card">
+                  <h3>{result.title}</h3>
+                    <p><strong>Lien vers l'article :</strong> <a href={result.url} target="_blank" rel="noopener noreferrer">{result.url}</a></p>
+                </li>
+              ))}
+            </ul>
+          </div> 
         )}
-      </header>
     </div>
   );
 }
