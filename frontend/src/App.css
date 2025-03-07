@@ -5,6 +5,7 @@
 body {
   font-family: 'Bebas Neue', cursive;
   background-color: #f4f4f9;
+  display: flex;
 }
 
 .App {
@@ -20,25 +21,6 @@ body {
   height: auto;
 }
 
-.loupe-container {
-  padding-top: 5px;
-  font-family: 'Montserrat', sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.loupe {
-  width: 24px;
-  height: auto;
-}
-
-.loupe-text {
-  font-size: 18px;
-  color: #333;
-}
-
 .App-header {
   background-color: #366d38a5;
   padding: 15px;
@@ -47,13 +29,40 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-h2 {
-  font-size: 22px;
-  color: #284f2aa5;
+.loupe-container {
+  padding-top: 5px;
+  font-family: 'Montserrat', sans-serif;
+  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: left;
+  width: 350px;
+  margin-left: 100px;
+  text-align: left;
+
+}
+
+.loupe {
+  width: 24px;
+  height: auto;
+}
+
+.loupe-text {
+  font-size: 30px;
+  color: #333;
+  font-weight: bold;
+}
+
+h2.explore-header {
+  font-size: 20px;
+  color: #333;
+  font-weight: normal;
+  align-items: flex-start;
 }
 
 .search-inputs {
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,20 +94,19 @@ input[type="text"]:focus {
 }
 
 button {
-  background-color: #28a745; /* Changement de couleur pour éviter le bleu saturé */
+  background-color: #0895ce; /* Changement de couleur pour éviter le bleu saturé */
   color: white;
   padding: 12px 25px;
   border: none;
   border-radius: 20px; /* Bouton plus arrondi */
   cursor: pointer;
   font-size: 16px;
-  margin-top: 15px;
+  margin-top: 0px;
   transition: background-color 0.3s ease, transform 0.2s ease-in-out; /* Transition au survol */
 }
 
 button:hover {
   background-color: #218838; /* Couleur plus sombre au survol */
-  transform: scale(1.05); /* Effet de légère expansion au survol */
 }
 
 button:disabled {

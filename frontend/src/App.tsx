@@ -55,10 +55,11 @@ function App() {
       <br />
       <div className="loupe-container">
         <img src="/loupe-icon.png" className="loupe" alt="loupe" />
-        <span className="loupe-text">BioQuery – Comprenez ce que vous consommez</span>
+        <span className="loupe-text">Comprendre votre consommation</span>
+      
+      <h2 className="explore-header">Explorez la recherche scientifique derrière les produits que vous consommez</h2>
       </div>
-      <h2>Explorer la recherche sur {ingredient ? ingredient : "votre composant"}</h2>
-
+      
       <div className="search-inputs">
         <label>
           Composant :
