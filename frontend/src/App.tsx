@@ -49,23 +49,25 @@ function App() {
     <div className="App">
       <header className="App-header"></header>
       <br />
-      <img src="/banniere-bioquery.png" className="App-logo" alt="logo" />
+      <a href="/">
+        <img src="/banniere-bioquery.png" className="App-logo" alt="logo" />
+      </a>
       <br />
       <div className="loupe-container">
         <img src="/loupe-icon.png" className="loupe" alt="loupe" />
         <span className="loupe-text">BioQuery – Comprenez ce que vous consommez</span>
       </div>
-      <h2>Explorer les recherches scientifiques sur {ingredient ? ingredient : "votre ingrédient"}</h2>
+      <h2>Explorer la recherche sur {ingredient ? ingredient : "votre composant"}</h2>
 
       <div className="search-inputs">
         <label>
-          Ingrédient :
+          Composant :
           <input
             type="text"
             value={ingredient}
             onChange={(e) => setIngredient(e.target.value)}
             onKeyDown={handleKeyPress} // Add this line to trigger search on Enter key
-            placeholder="Entrez un ingrédient"
+            placeholder="Entrez un composant, un ingrédient..."
           />
         </label>
       </div>

@@ -53,48 +53,56 @@ h2 {
 }
 
 .search-inputs {
-  margin-bottom: 20px;
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .search-inputs label {
-  font-size: 16px;
-  font-weight: bold;
-  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
 }
 
 input[type="text"] {
   padding: 12px;
-  width: 250px;
+  width: 300px; /* Augmenté pour plus de visibilité */
   margin-top: 10px;
   margin-left: 10px;
   border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: 20px; /* Forme plus arrondie pour un look moderne */
   font-size: 16px;
-  transition: border-color 0.3s;
+  transition: all 0.3s ease; /* Transition pour focus */
+  background-color: #fff;
 }
 
 input[type="text"]:focus {
   border-color: #007bff;
   outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Effet au focus pour plus de visibilité */
 }
 
 button {
-  background-color: #007bff;
+  background-color: #28a745; /* Changement de couleur pour éviter le bleu saturé */
   color: white;
-  padding: 12px 20px;
+  padding: 12px 25px;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px; /* Bouton plus arrondi */
   cursor: pointer;
   font-size: 16px;
-  transition: background-color 0.3s;
+  margin-top: 15px;
+  transition: background-color 0.3s ease, transform 0.2s ease-in-out; /* Transition au survol */
 }
 
 button:hover {
-  background-color: #0056b3;
+  background-color: #218838; /* Couleur plus sombre au survol */
+  transform: scale(1.05); /* Effet de légère expansion au survol */
 }
 
 button:disabled {
-  background-color: #a0a0a0;
+  background-color: #ccc;
   cursor: not-allowed;
 }
 
