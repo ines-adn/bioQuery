@@ -12,15 +12,14 @@ class LlamaLLM(ChatOllama):
         )
 
 class PubMedSearch:
-    def __init__(self, ingredient, allegation):
+    def __init__(self, ingredient):
         self.ingredient = ingredient
-        self.allegation = allegation
         self.llm = LlamaLLM("llama3.1")
 
     def generate_query(self) -> str:
         """ Utilise Llama pour générer une requête optimisée pour PubMed. """
         prompt = f"""Tu es un expert en sciences. Formule une requête PubMed
-        pour trouver des articles académiques prouvant que {self.ingredient} est {self.allegation}.
+        pour trouver des articles académiques sur les effets de {self.ingredient} sur l'homme (peau, santé, ...).
         
         Exemple de sortie attendue : 
         "Effects of Aloe Vera on skin hydration"
@@ -95,14 +94,14 @@ def download_pmc_pdf(pubmed_id, save_path):
 
 
 
-def search_and_download_from_pubmed(ingredient,allegation):
+def search_and_download_from_pubmed(ingredient):
 
     # Charger la configuration
     config = load_config()
     if not config:
         return {"error": "Configuration invalide"}
     
-    search_tool = PubMedSearch(ingredient, allegation)
+    search_tool = PubMedSearch(ingredient)
     query = search_tool.generate_query()
     base_dir = config.get("base_dir", "")
     if not base_dir:
@@ -139,6 +138,5 @@ def search_and_download_from_pubmed(ingredient,allegation):
 
 if __name__ == "__main__":
     ingredient = input("Entrez l'ingrédient : ")
-    allegation = input("Entrez l'allégation : ")
-    results = search_and_download_from_pubmed(ingredient, allegation)
+    results = search_and_download_from_pubmed(ingredient)
     print(results)

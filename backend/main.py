@@ -27,22 +27,22 @@ def read_root():
 
 
 @app.get("/search/semantic_scholars/")
-async def search_semantic_scholars(ingredient: str, allegation: str):
+async def search_semantic_scholars(ingredient: str):
     """ Recherche des articles sur Semantic Scholars. """
-    results = search_and_download_from_semantic_scholars(ingredient, allegation)
+    results = search_and_download_from_semantic_scholars(ingredient)
     return {"results": results}
 
 @app.get("/search/pubmed/")
-async def search_pubmed(ingredient: str, allegation: str):
+async def search_pubmed(ingredient: str):
     """ Recherche des articles sur PubMed. """
-    results = search_and_download_from_pubmed(ingredient, allegation)
+    results = search_and_download_from_pubmed(ingredient)
     return {"results": results}
 
 @app.get("/search/both/")
-async def search_both(ingredient: str, allegation: str):
+async def search_both(ingredient: str):
     """ Recherche des articles sur Semantic Scholars et PubMed. """
-    semantic_results = search_and_download_from_semantic_scholars(ingredient, allegation)
-    pubmed_results = search_and_download_from_pubmed(ingredient, allegation)
+    semantic_results = search_and_download_from_semantic_scholars(ingredient)
+    pubmed_results = search_and_download_from_pubmed(ingredient)
     
     # Combiner les résultats des deux recherches
     all_results = {

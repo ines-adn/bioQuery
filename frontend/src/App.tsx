@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import "./App.css";
+
 interface Result {
-  number: Int16Array;
+  number: number;
   title: string;
   url: string;
   // Add other fields as necessary
@@ -9,9 +10,6 @@ interface Result {
 
 function App() {
   const [ingredient, setIngredient] = useState("");
-  const [allegation, setAllegation] = useState("");
-  const [useSemantic, setUseSemantic] = useState(false);
-  const [usePubmed, setUsePubmed] = useState(false);
   const [results, setResults] = useState<Result[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,119 +17,83 @@ function App() {
   const handleSearch = async () => {
     const params = new URLSearchParams();
     params.append("ingredient", ingredient);
-    params.append("allegation", allegation);
 
-    let url = "";
-    console.log("Fetching data from:", url);
-
-    if (useSemantic && usePubmed) {
-      url = `/search/both/?${params.toString()}`;
-    } else if (useSemantic) {
-      url = `/search/semantic_scholars/?${params.toString()}`;
-    } else if (usePubmed) {
-      url = `/search/pubmed/?${params.toString()}`;
-    }
+    const url = `/search/semantic_scholars/?${params.toString()}`;
 
     console.log("Fetching data from:", url);
 
-    if (url) {
-      setLoading(true);
-      try {
-        const fullURL = "http://localhost:8000" + url
-        const response = await fetch(fullURL);
-        console.log(response)
-        if (response.ok) {
-          const data = await response.json();
-          setResults(data.results);
-        } else {
-          setError("Error fetching data");
-        }
-      } catch (error) {
+    setLoading(true);
+    try {
+      const fullURL = "http://localhost:8000" + url;
+      const response = await fetch(fullURL);
+      if (response.ok) {
+        const data = await response.json();
+        setResults(data.results);
+      } else {
         setError("Error fetching data");
-      } finally {
-        setLoading(false);
       }
-    } else {
-      setError("No search method selected.");
+    } catch (error) {
+      setError("Error fetching data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
     }
   };
 
   return (
     <div className="App">
-      <header className="App-header">
-      </header>
-      <br></br>
-      <img src="/logo-aroma-zone.png" className="App-logo" alt="logo" />
-      <br></br>
+      <header className="App-header"></header>
+      <br />
+      <img src="/banniere-bioquery.png" className="App-logo" alt="logo" />
+      <br />
       <div className="loupe-container">
         <img src="/loupe-icon.png" className="loupe" alt="loupe" />
-        <span className="loupe-text">Outil de recherches bibliographiques</span>
+        <span className="loupe-text">BioQuery – Comprenez ce que vous consommez</span>
       </div>
-        <h2>Recherche d'articles scientifiques</h2>
+      <h2>Explorer les recherches scientifiques sur {ingredient ? ingredient : "votre ingrédient"}</h2>
 
-        <div>
-          <label>
-            Ingrédient :
-            <input
-              type="text"
-              value={ingredient}
-              onChange={(e) => setIngredient(e.target.value)}
-            />
-          </label>
+      <div className="search-inputs">
+        <label>
+          Ingrédient :
+          <input
+            type="text"
+            value={ingredient}
+            onChange={(e) => setIngredient(e.target.value)}
+            onKeyDown={handleKeyPress} // Add this line to trigger search on Enter key
+            placeholder="Entrez un ingrédient"
+          />
+        </label>
+      </div>
+
+      <button onClick={handleSearch} disabled={loading}>
+        {loading ? "Chargement..." : "Explorer"}
+      </button>
+
+      {error && <div className="error-message">{error}</div>}
+
+      {results && results.length > 0 && (
+        <div className="results-container">
+          <h2>Résultats :</h2>
+          <ul className="results-list">
+            {results.map((result, index) => (
+              <li key={index} className="result-item">
+                <h3>{result.title}</h3>
+                <p>
+                  <strong>Lien vers l'article :</strong>{" "}
+                  <a href={result.url} target="_blank" rel="noopener noreferrer">
+                    {result.url}
+                  </a>
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
-
-        <div>
-          <label>
-            Allégation :
-            <input
-              type="text"
-              value={allegation}
-              onChange={(e) => setAllegation(e.target.value)}
-            />
-          </label>
-        </div>
-
-        <div>
-          <label>
-            Utiliser Semantic Scholars :
-            <input
-              type="checkbox"
-              checked={useSemantic}
-              onChange={() => setUseSemantic(!useSemantic)}
-            />
-          </label>
-        </div>
-
-        <div>
-          <label>
-            Utiliser PubMed :
-            <input
-              type="checkbox"
-              checked={usePubmed}
-              onChange={() => setUsePubmed(!usePubmed)}
-            />
-          </label>
-        </div>
-
-        <button onClick={handleSearch} disabled={loading}>
-          {loading ? "Chargement..." : "Chercher"}
-        </button>
-
-        {error && <div style={{ color: "red" }}>{error}</div>}
-
-        {results && results.length > 0 && (
-          <div className="results-container">
-            <h2>Résultats :</h2>
-            <ul>
-              {results.map((result, number) => (
-                <li key={number} className="article-card">
-                  <h3>{result.title}</h3>
-                    <p><strong>Lien vers l'article :</strong> <a href={result.url} target="_blank" rel="noopener noreferrer">{result.url}</a></p>
-                </li>
-              ))}
-            </ul>
-          </div> 
-        )}
+      )}
     </div>
   );
 }

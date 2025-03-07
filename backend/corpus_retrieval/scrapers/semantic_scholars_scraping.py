@@ -13,15 +13,14 @@ class LlamaLLM(ChatOllama):
         )
 
 class SemanticScolarSearch:
-    def __init__(self, ingredient, allegation):
+    def __init__(self, ingredient):
         self.ingredient = ingredient
-        self.allegation = allegation
         self.llm = LlamaLLM("llama3.1")
 
     def generate_query(self) -> str:
         """ Utilise Llama pour générer une requête optimisée pour Google Scholar. """
         prompt = f"""Tu es un expert en sciences. Formule une requête Google Scholar 
-        pour trouver des articles académiques prouvant que {self.ingredient} est {self.allegation}.
+        pour trouver des articles académiques sur les effets de {self.ingredient} sur le corps humain (peau, santé, ...).
         
         Exemple de sortie attendue : 
         "Effects of Aloe Vera on skin hydration"
@@ -101,14 +100,14 @@ def search_semantic_scholar(query, num_results=3):
 
 
 
-def search_and_download_from_semantic_scholars(ingredient, allegation):
+def search_and_download_from_semantic_scholars(ingredient):
     
     """ Lance la recherche et télécharge les articles. """
     config = load_config()
     if not config:
         return {"error": "Configuration invalide"}
 
-    search_tool = SemanticScolarSearch(ingredient, allegation)
+    search_tool = SemanticScolarSearch(ingredient)
     query = search_tool.generate_query()
     base_dir = config.get("base_dir", "")
 
@@ -146,6 +145,5 @@ def search_and_download_from_semantic_scholars(ingredient, allegation):
 
 if __name__ == "__main__":
     ingredient = input("Ingrédient : ")
-    allegation = input("Allégation : ")
-    results = search_and_download_from_semantic_scholars(ingredient, allegation)
+    results = search_and_download_from_semantic_scholars(ingredient)
     print(results)
