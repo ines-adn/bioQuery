@@ -29,8 +29,15 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.loupe-and-search {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
 .loupe-container {
-  padding-top: 5px;
+  padding: 10px;
   font-family: 'Montserrat', sans-serif;
   gap: 8px;
   display: flex;
@@ -38,8 +45,8 @@ body {
   align-items: flex-start;
   justify-content: left;
   width: 350px;
-  margin-left: 100px;
   text-align: left;
+  margin-left: 5%;
 
 }
 
@@ -61,15 +68,19 @@ h2.explore-header {
   align-items: flex-start;
 }
 
+.search-container {
+  padding: 10px;
+  margin-right: 10%;
+}
+
 .search-inputs {
   margin-bottom: 10px;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
 .search-inputs label {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 600;
   margin-bottom: 8px;
   color: #333;
@@ -78,8 +89,6 @@ h2.explore-header {
 input[type="text"] {
   padding: 12px;
   width: 300px; /* Augmenté pour plus de visibilité */
-  margin-top: 10px;
-  margin-left: 10px;
   border: 1px solid #ccc;
   border-radius: 20px; /* Forme plus arrondie pour un look moderne */
   font-size: 16px;
@@ -122,6 +131,17 @@ button:disabled {
 
 .results-container {
   margin-top: 40px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.results-intro {
+  font-size: 16px;
+  font-weight: 500;
+  color: #444;
+  margin-bottom: 15px;
 }
 
 .results-list {
@@ -137,6 +157,10 @@ button:disabled {
   border: 1px solid #ddd;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.result-item:hover {
+  background-color: #a8d7aae0;
 }
 
 .result-item h3 {

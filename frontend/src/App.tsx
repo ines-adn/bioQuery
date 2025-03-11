@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 
 interface Result {
@@ -8,6 +8,26 @@ interface Result {
   // Add other fields as necessary
 }
 
+function TypingText({ text, speed = 50 }: { text: string; speed?: number }) {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    let index = 0;
+    setDisplayedText(""); // Réinitialisation propre
+    if (!text) return; // Empêche tout affichage d'undefined
+
+    const interval = setInterval(() => {
+      setDisplayedText((prev) => text.slice(0, index + 1));
+      index++;
+      if (index >= text.length) clearInterval(interval);
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [text]); // Dépendance pour relancer l'effet à chaque mise à jour du texte
+
+  return <>{displayedText}</>;
+}
+
 function App() {
   const [ingredient, setIngredient] = useState("");
   const [results, setResults] = useState<Result[] | null>(null);
@@ -15,6 +35,7 @@ function App() {
   const [error, setError] = useState("");
 
   const handleSearch = async () => {
+    
     const params = new URLSearchParams();
     params.append("ingredient", ingredient);
 
@@ -22,6 +43,7 @@ function App() {
 
     console.log("Fetching data from:", url);
 
+    setError("");
     setLoading(true);
     try {
       const fullURL = "http://localhost:8000" + url;
@@ -30,10 +52,10 @@ function App() {
         const data = await response.json();
         setResults(data.results);
       } else {
-        setError("Error fetching data");
+        setError("Erreur : rafraîchissez la page et réessayez");
       }
     } catch (error) {
-      setError("Error fetching data");
+      setError("Erreur : rafraîchissez la page et réessayez");
     } finally {
       setLoading(false);
     }
@@ -53,16 +75,19 @@ function App() {
         <img src="/banniere-bioquery.png" className="App-logo" alt="logo" />
       </a>
       <br />
+      <div className = "loupe-and-search">
       <div className="loupe-container">
         <img src="/loupe-icon.png" className="loupe" alt="loupe" />
-        <span className="loupe-text">Comprendre votre consommation</span>
+        <span className="loupe-text"><TypingText text="Comprenez votre consommation"/></span>
       
-      <h2 className="explore-header">Explorez la recherche scientifique derrière les produits que vous consommez</h2>
+      <h2 className="explore-header"><TypingText text= "Explorez la recherche scientifique derrière les produits que vous consommez."/></h2>
       </div>
       
+      <div className="search-container">
       <div className="search-inputs">
         <label>
           Composant :
+          </label>
           <input
             type="text"
             value={ingredient}
@@ -70,18 +95,23 @@ function App() {
             onKeyDown={handleKeyPress} // Add this line to trigger search on Enter key
             placeholder="Entrez un composant, un ingrédient..."
           />
-        </label>
+        
       </div>
 
       <button onClick={handleSearch} disabled={loading}>
         {loading ? "Chargement..." : "Explorer"}
       </button>
+      </div>
+      </div>
 
       {error && <div className="error-message">{error}</div>}
 
       {results && results.length > 0 && (
         <div className="results-container">
           <h2>Résultats :</h2>
+          <p className="results-intro">
+      Après des recherches sur Semantic Scholar, voici les articles scientifiques en lien avec l'effet du composant {ingredient} sur l'humain :
+    </p>
           <ul className="results-list">
             {results.map((result, index) => (
               <li key={index} className="result-item">
