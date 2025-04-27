@@ -10,3 +10,6 @@ articles/
 
 # Ignorer les fichiers ipynb
 *.ipynb
+
+# Ignorer les modules Node.js
+node_modules/
