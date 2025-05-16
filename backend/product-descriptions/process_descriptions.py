@@ -1,1 +1,0 @@
-# Script pour extraire les allégations

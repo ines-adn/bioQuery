@@ -2,3 +2,6 @@ fastapi
 uvicorn
 ollama
 langchain
+langchain_community
+langchain_huggingface
+langchain_postgres

@@ -114,8 +114,8 @@ def search_and_download_from_semantic_scholars(ingredient):
     if not base_dir:
         return {"error": "Chemin base_dir non défini"}
 
-    folder_name = query.replace(" ", "_").lower()
-    folder_path = os.path.join(base_dir, "backend", "corpus-retrieval", "data", "articles", folder_name)
+    folder_name = ingredient.replace(" ", "_").lower()
+    folder_path = os.path.join(base_dir, "backend", "data", "articles", folder_name)
     os.makedirs(folder_path, exist_ok=True)
 
     articles = search_semantic_scholar(query, num_results=3)
@@ -123,6 +123,7 @@ def search_and_download_from_semantic_scholars(ingredient):
 
     for i, article in enumerate(articles, 1):
         result = {"title": article["title"], "url": article["url"]}
+        
         pdf_url = article.get("openAccessPdf")
         if pdf_url and isinstance(pdf_url, dict):
             pdf_url = pdf_url.get("url", "")
@@ -130,7 +131,8 @@ def search_and_download_from_semantic_scholars(ingredient):
             pdf_url = ""
 
         if pdf_url:
-            save_path = os.path.join(folder_path, f"article_{i}.pdf")
+            ingredient_underscore = ingredient.replace(" ", "_")
+            save_path = os.path.join(folder_path, f"{ingredient_underscore}_article_{i}.pdf")
             download_pdf(pdf_url, save_path)
             result["pdf"] = save_path
         else:

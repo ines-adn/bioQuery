@@ -1,3 +1,11 @@
 {
-    "base_dir": "C:\\Users\\User\\Documents\\aromazone-retrieval-tool"
+    "base_dir": "/Users/adminappliedai/Documents/Apps (Side Projects)/aromazone-retrieval-tool",
+    "postgres": {
+      "host": "localhost",
+      "port": 5432,
+      "database": "bioQuery",
+      "user": "adminappliedai",
+      "password": null
+    },
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
   }
