@@ -1,4 +1,0 @@
-vector_store:
-  embedings_hf_model: "sentence-transformers/all-mpnet-base-v2"  # Modèle d'embeddings HuggingFace
-  collection_name: "corpus"  # Nom de la collection dans la base PostgreSQL
-  sql_db_url: "postgresql://aromazone:aromazone@localhost:5432/aromazone"  # URL de la base PostgreSQL

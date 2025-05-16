@@ -134,7 +134,7 @@ class ArticleProcessor:
         
         return results
 
-
+    
 def process_downloaded_articles(ingredient, chunk_size=1000, chunk_overlap=200):
     """
     Fonction d'utilité pour traiter les articles téléchargés pour un ingrédient.

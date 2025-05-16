@@ -243,7 +243,7 @@ class EmbeddingManager:
                 }
             
             # Vérifier si la collection existe
-            cursor.execute("SELECT 1 FROM langchain_pg_collection WHERE collection_name = %s", (collection_name,))
+            cursor.execute("SELECT 1 FROM langchain_pg_collection WHERE name = %s", (collection_name,))
             exists = cursor.fetchone()
             
             if not exists:
@@ -254,7 +254,7 @@ class EmbeddingManager:
                 }
             
             # Récupérer les métadonnées de la collection
-            cursor.execute("SELECT cmetadata FROM langchain_pg_collection WHERE collection_name = %s", (collection_name,))
+            cursor.execute("SELECT cmetadata FROM langchain_pg_collection WHERE name = %s", (collection_name,))
             metadata_row = cursor.fetchone()
             metadata = metadata_row[0] if metadata_row else {}
             
