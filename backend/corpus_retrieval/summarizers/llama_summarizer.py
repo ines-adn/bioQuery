@@ -5,6 +5,7 @@ import uuid
 import os
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain_ollama import ChatOllama
@@ -135,7 +136,7 @@ class IngredientSummarizer:
             """
         return prompt
     
-    def summarize_ingredient(self, ingredient: str, max_chunks: int = 50) -> Dict[str, Any]:
+    def summarize_ingredient(self, ingredient: str, max_chunks: int = 5) -> Dict[str, Any]:
         """Génère un résumé complet sur un ingrédient à partir des chunks stockés."""
         start_time = time.time()
         
@@ -156,13 +157,7 @@ class IngredientSummarizer:
             prompt_template = PromptTemplate.from_template(prompt)
             
             # Créer et exécuter la chaîne LLM
-            chain = LLMChain(
-                llm=self.llm,
-                prompt=prompt_template,
-                output_parser=StrOutputParser()
-            )
-            
-            # Exécuter la chaîne (sans entrées supplémentaires car tout est dans le template)
+            chain = prompt_template | self.llm | StrOutputParser()
             summary = chain.invoke({})
             
             end_time = time.time()
@@ -224,7 +219,7 @@ class IngredientSummarizer:
             }
 
 
-def generate_ingredient_summary(ingredient: str, save_to_file: bool = True, max_chunks: int = 50) -> Dict[str, Any]:
+def generate_ingredient_summary(ingredient: str, save_to_file: bool = True, max_chunks: int = 5) -> Dict[str, Any]:
     """
     Fonction utilitaire pour générer un résumé pour un ingrédient.
     Cette fonction peut être appelée directement depuis d'autres modules.
