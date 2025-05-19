@@ -10,7 +10,7 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 # Importer les fonctions nécessaires des autres modules
-from backend.corpus_retrieval.parsers.embedding_store import EmbeddingManager, load_config
+from ..parsers.embedding_store import EmbeddingManager, load_config
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -28,7 +28,7 @@ class LlamaLLM(ChatOllama):
 class IngredientSummarizer:
     """Classe pour résumer les informations sur un ingrédient à partir des chunks stockés."""
     
-    def __init__(self, config_file="backend/config.json", use_openai=False, openai_model="gpt-3.5-turbo"):
+    def __init__(self, config_file="config.json", use_openai=True, openai_model="gpt-3.5-turbo"):
         self.config = load_config(config_file)
         self.embedding_manager = EmbeddingManager(config_file)
         self.model_name = self.config.get("llm_model", "llama3.1")
@@ -120,7 +120,7 @@ class IngredientSummarizer:
         # Construire le prompt complet - version plus concise
         prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
 
-            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé (500 mots), en Français, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en Français, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
 
             OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
 
@@ -251,16 +251,119 @@ class IngredientSummarizer:
             batch = chunks[i:i+batch_size]
             logger.info(f"Traitement du lot {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}")
             
-            prompt = f"Résume brièvement ces extraits sur {ingredient}:\n\n"
+            prompt = prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+
+            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en Français, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+
+            OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+
+            Ton texte doit :
+
+            1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+
+            2. Développer les propriétés scientifiquement établies en précisant systématiquement :
+            - La nature des études (in vitro, animales, essais cliniques humains)
+            - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
+            - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+
+            3. Présenter de façon équilibrée :
+            - Les bénéfices démontrés avec leur niveau de preuve scientifique
+            - Les limitations, effets indésirables ou précautions d'emploi
+            - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+
+            4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+
+            5. Conclure avec une synthèse objective de l'état actuel des connaissances 
+            6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+
+            Le style doit être :
+            - Formel et encyclopédique, sans formulations commerciales ou subjectives
+            - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
+            - Structuré avec des transitions logiques entre les différents aspects abordés
+            - Accessible, en expliquant systématiquement les termes techniques
+
+            IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
+            IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
+            
+            IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
+            Extraits sur {ingredient} :
+
+            Ton texte doit :
+
+            1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+
+            2. Développer les propriétés scientifiquement établies en précisant systématiquement :
+            - La nature des études (in vitro, animales, essais cliniques humains)
+            - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
+            - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+
+            3. Présenter de façon équilibrée :
+            - Les bénéfices démontrés avec leur niveau de preuve scientifique
+            - Les limitations, effets indésirables ou précautions d'emploi
+            - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+
+            4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+
+            5. Conclure avec une synthèse objective de l'état actuel des connaissances 
+            6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+
+            Le style doit être :
+            - Formel et encyclopédique, sans formulations commerciales ou subjectives
+            - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
+            - Structuré avec des transitions logiques entre les différents aspects abordés
+            - Accessible, en expliquant systématiquement les termes techniques
+
+            IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
+            IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
+            
+            IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
+                """
+     
             prompt += "\n---\n".join([doc.page_content for doc in batch])
             
             batch_summary = self.llm.invoke(prompt).content
             batch_summaries.append(batch_summary)
         
         # Résumer les résumés
+        # Résumer les résumés
         summaries_joined = "\n\n".join([f"Résumé {i+1}:\n{summary}" for i, summary in enumerate(batch_summaries)])
-        final_prompt = f"""Synthétise ces résumés partiels sur {ingredient} en un résumé complet et cohérent:
-        
+        final_prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+
+        Voici plusieurs résumés partiels sur l'ingrédient "{ingredient}". Synthétise-les en un paragraphe détaillé (300 mots), en Français, dans un style encyclopédique similaire à Wikipedia.
+
+        OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+
+        Ton texte doit :
+
+        1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+
+        2. Développer les propriétés scientifiquement établies en précisant systématiquement :
+        - La nature des études (in vitro, animales, essais cliniques humains)
+        - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
+        - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+
+        3. Présenter de façon équilibrée :
+        - Les bénéfices démontrés avec leur niveau de preuve scientifique
+        - Les limitations, effets indésirables ou précautions d'emploi
+        - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+
+        4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+
+        5. Conclure avec une synthèse objective de l'état actuel des connaissances 
+        6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+
+        Le style doit être :
+        - Formel et encyclopédique, sans formulations commerciales ou subjectives
+        - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
+        - Structuré avec des transitions logiques entre les différents aspects abordés
+        - Accessible, en expliquant systématiquement les termes techniques
+
+        IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les résumés fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources.
+        IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
+
+        IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
+
+        Résumés à synthétiser :
         {summaries_joined}
         """
         return self.llm.invoke(final_prompt).content
@@ -304,7 +407,7 @@ class IngredientSummarizer:
 
 
 def generate_ingredient_summary(ingredient: str, save_to_file: bool = True, max_chunks: int = 50, 
-                               use_openai: bool = False, openai_model: str = "gpt-3.5-turbo") -> Dict[str, Any]:
+                               use_openai: bool = True, openai_model: str = "gpt-3.5-turbo") -> Dict[str, Any]:
     """
     Fonction utilitaire pour générer un résumé pour un ingrédient.
     Cette fonction peut être appelée directement depuis d'autres modules.
@@ -325,7 +428,6 @@ def generate_ingredient_summary(ingredient: str, save_to_file: bool = True, max_
             summary_id=summary_result.get("summary_id")
         )
         
-        # Ajouter les informations de sauvegarde au résultat
         summary_result["save_result"] = save_result
     
     return summary_result
@@ -352,7 +454,14 @@ if __name__ == "__main__":
         use_openai = False
         print("Utilisation du modèle local par défaut...")
     else:
-        use_openai = args.openai
+        # Si la clé API existe et que l'utilisateur n'a pas explicitement choisi le modèle local,
+        # utiliser OpenAI par défaut
+        if os.environ.get("OPENAI_API_KEY") and not args.openai:
+            print("Variable d'environnement OPENAI_API_KEY détectée. Utilisation d'OpenAI par défaut.")
+            print("Pour utiliser le modèle local, ajoutez l'option --no-openai")
+            use_openai = True
+        else:
+            use_openai = args.openai
     
     print(f"Génération du résumé pour l'ingrédient: {args.ingredient}")
     print(f"Sauvegarde dans un fichier: {'Non' if args.no_save else 'Oui'}")

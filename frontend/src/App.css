@@ -613,3 +613,127 @@ button:disabled {
     padding: 48px 0;
   }
 }
+
+
+/* Styles pour la section de résumé scientifique */
+.summary-container {
+  background-color: var(--light);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--gray-200);
+  padding: 24px 28px;
+  margin-bottom: 36px;
+  position: relative;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--primary);
+}
+
+.summary-container:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+  border-left-color: var(--primary);
+}
+
+.summary-container h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-container h3::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.summary-content {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--gray-700);
+  text-align: justify;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+}
+
+.summary-stats {
+  font-size: 13px;
+  color: var(--gray-600);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px solid var(--gray-200);
+  padding-top: 12px;
+}
+
+.summary-stats span {
+  display: flex;
+  align-items: center;
+}
+
+.summary-stats span::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* Modification des styles pour la section de résultats */
+.results-section .results-intro {
+  margin-top: 12px;
+  padding-top: 0;
+  margin-bottom: 32px;
+}
+
+/* Style du badge de résumé */
+.summary-badge {
+  position: absolute;
+  top: -12px;
+  right: 16px;
+  background-color: var(--primary-light);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 100px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Animation d'entrée pour le résumé */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.summary-container {
+  animation: slideDown 0.5s ease-out forwards;
+}
+
+/* Responsive styles pour le résumé */
+@media (max-width: 768px) {
+  .summary-container {
+    padding: 20px;
+  }
+  
+  .summary-content {
+    font-size: 15px;
+  }
+  
+  .summary-stats {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

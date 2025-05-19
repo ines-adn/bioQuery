@@ -7,6 +7,21 @@ interface Result {
   url: string;
 }
 
+interface Summary {
+  text: string;
+  id: string;
+  processing_time?: number;
+  chunks_processed?: number;
+}
+
+// Mise à jour de la structure de réponse pour la nouvelle API
+interface SearchResponse {
+  status: string;
+  message: string;
+  semantic_results: Result[];
+  summary: Summary | null;
+}
+
 function TypingText({ text, speed = 50 }: { text: string; speed?: number }) {
   const [displayedText, setDisplayedText] = useState("");
 
@@ -46,6 +61,7 @@ function BioQueryLogo({ size = 32 }: { size?: number }) {
 function App() {
   const [ingredient, setIngredient] = useState("");
   const [results, setResults] = useState<Result[] | null>(null);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeSection, setActiveSection] = useState("search");
@@ -81,19 +97,27 @@ function App() {
     
     const params = new URLSearchParams();
     params.append("ingredient", ingredient);
-    const url = `/search/semantic_scholars/?${params.toString()}`;
+    // Utiliser la nouvelle route API qui fait le processus complet
+    const url = `/search/complete/?${params.toString()}`;
 
     setError("");
     setLoading(true);
+    setSummary(null);
+    setResults(null);
+    
     try {
       const fullURL = "http://localhost:8000" + url;
       const response = await fetch(fullURL);
+      
       if (response.ok) {
-        const data = await response.json();
-        setResults(data.results);
+        const data: SearchResponse = await response.json();
+        
+        // Extraire le résumé et les résultats
+        setSummary(data.summary);
+        setResults(data.semantic_results);
         
         // Scroll to results after they load
-        if (data.results && data.results.length > 0) {
+        if ((data.semantic_results && data.semantic_results.length > 0) || data.summary) {
           setTimeout(() => {
             document.getElementById('results-section')?.scrollIntoView({ 
               behavior: 'smooth' 
@@ -247,7 +271,7 @@ function App() {
         </div>
       </div>
 
-      {results && results.length > 0 && (
+      {(results || summary) && (
         <div 
           id="results-section" 
           className="results-section"
@@ -255,36 +279,59 @@ function App() {
           <div className="container">
             <div className="results-header">
               <h2>Résultats de recherche</h2>
-              <div className="results-badge">{results.length} articles trouvés</div>
+              <div className="results-badge">
+                {results && results.length > 0 ? `${results.length} articles trouvés` : ""}
+              </div>
             </div>
-            <p className="results-intro">
-              Après des recherches sur Semantic Scholar, voici les articles scientifiques en lien avec l'effet du composant <strong>{ingredient}</strong> sur l'humain :
-            </p>
             
-            <div className="results-grid">
-              {results.map((result, index) => (
-                <div
-                  key={index}
-                  className="result-card"
-                >
-                  <span className="result-number">{index + 1}</span>
-                  <h3>{result.title}</h3>
-                  <a 
-                    href={result.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="result-link"
-                  >
-                    Voir l'article complet
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                      <polyline points="15 3 21 3 21 9"></polyline>
-                      <line x1="10" y1="14" x2="21" y2="3"></line>
-                    </svg>
-                  </a>
+            {/* Affichage du résumé */}
+            {summary && (
+              <div className="summary-container">
+                <h3>Synthèse scientifique sur {ingredient}</h3>
+                <div className="summary-content">
+                  {summary.text}
                 </div>
-              ))}
-            </div>
+                {summary.processing_time && (
+                  <div className="summary-stats">
+                    <span>Basé sur {summary.chunks_processed} extraits • Généré en {summary.processing_time.toFixed(1)} secondes</span>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Affichage des articles */}
+            {results && results.length > 0 && (
+              <>
+                <p className="results-intro">
+                  Les données précédentes se basent sur les articles suivant à propos du composant <strong>{ingredient}</strong> :
+                </p>
+                
+                <div className="results-grid">
+                  {results.map((result, index) => (
+                    <div
+                      key={index}
+                      className="result-card"
+                    >
+                      <span className="result-number">{index + 1}</span>
+                      <h3>{result.title}</h3>
+                      <a 
+                        href={result.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="result-link"
+                      >
+                        Voir l'article complet
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
