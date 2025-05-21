@@ -84,6 +84,11 @@ body {
   cursor: pointer;
 }
 
+.language-selector {
+    margin-top: 10px;
+    align-self: flex-end;
+  }
+
 .nav-links {
   display: flex;
   gap: 32px;

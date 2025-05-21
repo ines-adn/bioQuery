@@ -3,6 +3,7 @@ from corpus_retrieval.scrapers.semantic_scholars_scraping import search_and_down
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
+from fastapi import APIRouter
 
 # Vérifier la variable d'environnement OpenAI au démarrage
 has_openai_key = os.environ.get("OPENAI_API_KEY") is not None
@@ -21,7 +22,8 @@ from corpus_retrieval.parsers.embedding_store import store_article_chunks
 
 # Point d'entrée du backend
 app = FastAPI()
-
+router = APIRouter()
+app.include_router(router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],  # Front React
@@ -113,15 +115,24 @@ async def search_complete(
     use_openai: bool = False, 
     use_cache: bool = True, 
     use_openai_for_query: bool = None,
-    max_chunks: int = 10,
-    process_pdfs: bool = True  # Activer le traitement automatique des PDFs
+    max_chunks: int = 10,            # Réduire la valeur par défaut
+    max_chunks_ollama: int = 3,      # Nouveau paramètre spécifique à Ollama
+    max_tokens_ollama: int = 500,   # Nouveau paramètre pour limiter les tokens pour Ollama
+    process_pdfs: bool = True,       # Activer le traitement automatique des PDFs
+    language: str = "fr"             # Nouveau paramètre pour la langue du résumé
 ):
     """
     Effectue le processus complet avec OpenAI si demandé ou si la variable d'environnement est définie.
     Utilise le cache local pour les articles si disponible.
     Traite automatiquement les PDFs si process_pdfs=True.
+    Permet de spécifier des limites spécifiques pour Ollama.
+    Génère le résumé dans la langue spécifiée (fr ou en).
     """
     try:
+        # Vérifier que la langue est valide
+        if language not in ["fr", "en"]:
+            language = "fr"  # Par défaut en français
+            
         # Vérifier si une API key OpenAI est définie
         has_openai_key = os.environ.get("OPENAI_API_KEY") is not None
         
@@ -135,7 +146,10 @@ async def search_complete(
         print(f"[DEBUG] use_cache (paramètre): {use_cache}")
         print(f"[DEBUG] use_openai_for_query (paramètre): {use_openai_for_query if use_openai_for_query is not None else 'auto'}")
         print(f"[DEBUG] max_chunks (paramètre): {max_chunks}")
+        print(f"[DEBUG] max_chunks_ollama (paramètre): {max_chunks_ollama}")
+        print(f"[DEBUG] max_tokens_ollama (paramètre): {max_tokens_ollama}")
         print(f"[DEBUG] process_pdfs (paramètre): {process_pdfs}")
+        print(f"[DEBUG] language (paramètre): {language}")
         
         # Normaliser le nom de l'ingrédient pour la cohérence
         ingredient_normalized = ingredient.lower().replace(" ", "_")
@@ -192,23 +206,35 @@ async def search_complete(
             llm_type = LLM_TYPE_OPENAI if use_openai_model else LLM_TYPE_OLLAMA
             
             if use_openai_model:
-                print(f"Utilisation d'OpenAI pour la génération du résumé de {ingredient}")
+                print(f"Utilisation d'OpenAI pour la génération du résumé de {ingredient} en {language}")
                 # Modèle à utiliser avec OpenAI
                 model_name = "gpt-3.5-turbo"
+                
+                # Mise à jour des paramètres pour OpenAI avec langue
+                summary_result = generate_ingredient_summary(
+                    ingredient=ingredient_normalized,  # Utiliser le nom normalisé
+                    save_to_file=True,
+                    max_chunks=max_chunks,
+                    llm_type=llm_type,
+                    model_name=model_name,
+                    language=language  # Ajouter le paramètre de langue
+                )
             else:
-                print(f"Utilisation de Llama local pour la génération du résumé de {ingredient}")
+                print(f"Utilisation de Llama local pour la génération du résumé de {ingredient} en {language}")
                 # Laisser le modèle par défaut pour Llama
                 model_name = None
-            
-            # Mise à jour des paramètres pour correspondre à la signature actuelle
-            # Avec un nombre réduit de chunks pour accélérer le traitement
-            summary_result = generate_ingredient_summary(
-                ingredient=ingredient_normalized,  # Utiliser le nom normalisé
-                save_to_file=True,
-                max_chunks=max_chunks,
-                llm_type=llm_type,
-                model_name=model_name
-            )
+                
+                # Mise à jour des paramètres avec les limitations pour Ollama et langue
+                summary_result = generate_ingredient_summary(
+                    ingredient=ingredient_normalized,  # Utiliser le nom normalisé
+                    save_to_file=True,
+                    max_chunks=max_chunks,
+                    llm_type=llm_type,
+                    model_name=model_name,
+                    max_chunks_ollama=max_chunks_ollama,  # Utiliser la limite spécifique d'Ollama
+                    max_tokens_ollama=max_tokens_ollama,  # Utiliser la limite de tokens pour Ollama
+                    language=language  # Ajouter le paramètre de langue
+                )
         except Exception as e:
             print(f"Erreur lors de la génération du résumé: {str(e)}")
             return {
@@ -242,7 +268,8 @@ async def search_complete(
                 "id": summary_result.get("summary_id"),
                 "processing_time": summary_result.get("processing_time"),
                 "chunks_processed": summary_result.get("chunks_processed"),
-                "model_used": "OpenAI" if use_openai_model else "Llama local"
+                "model_used": "OpenAI" if use_openai_model else "Llama local",
+                "language": language  # Inclure la langue dans la réponse
             }
         }
     
@@ -265,6 +292,12 @@ async def search_both(ingredient: str, use_cache: bool = True, use_openai_for_qu
         "semantic_scholars": semantic_results,
     }
     return {"results": all_results}
+
+# SUPPRESSION DE LA ROUTE EN DOUBLE
+# Ne gardez pas cette route car elle est en conflit avec celle ci-dessus
+# @router.get("/search/complete/")
+# async def search_and_summarize(ingredient: str, language: str = "fr"):
+#    ...
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, log_level="info")

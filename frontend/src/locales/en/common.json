@@ -1,0 +1,61 @@
+{
+  "nav": {
+    "search": "Search",
+    "howItWorks": "How it works",
+    "about": "About",
+    "contact": "Contact"
+  },
+  "hero": {
+    "headline": "Understand your consumption",
+    "subheadline": "Explore the scientific research behind the products you consume."
+  },
+  "search": {
+    "label": "Component:",
+    "placeholder": "Enter a component, an ingredient...",
+    "button": "Explore",
+    "error": "Please enter a component or ingredient"
+  },
+  "results": {
+    "title": "Search Results",
+    "articlesFound": "{{count}} articles found",
+    "summary": "Scientific summary on {{ingredient}}",
+    "basedOn": "Based on {{count}} excerpts • Generated in {{time}} seconds",
+    "intro": "The data above is based on the following articles about the component <1>{{ingredient}}</1>:",
+    "viewArticle": "View full article",
+    "summaryLanguage": "Summary language",
+    "generateInEnglish": "Generate in English",
+    "generateInFrench": "Generate in French",
+    "regenerateSummary": "Regenerate summary"
+  },
+  "howItWorks": {
+    "title": "How it works",
+    "search": {
+      "title": "Search",
+      "description": "Enter the name of a component or ingredient you're interested in the search bar."
+    },
+    "explore": {
+      "title": "Explore",
+      "description": "Discover a summary of the most relevant scientific articles related to your search thanks to the AI-powered bioQuery tool."
+    },
+    "understand": {
+      "title": "Understand",
+      "description": "Access scientific sources to understand the effects of components on health and the environment."
+    }
+  },
+  "about": {
+    "title": "About bioQuery",
+    "paragraph1": "bioQuery is an innovative platform that aims to use artificial intelligence as a means to make scientific research accessible to everyone. bioQuery's mission is to enable consumers to make more informed choices by giving them access to reliable and up-to-date information on the components of the products they use daily.",
+    "paragraph2": "By connecting consumers to the latest advances in scientific research, bioQuery aims to contribute to more responsible consumption and a better understanding of the impacts of our choices on our health."
+  },
+  "contact": {
+    "title": "Contact",
+    "description": "Do you have questions, suggestions, or want to know more about bioQuery? Feel free to contact us."
+  },
+  "footer": {
+    "copyright": "© 2025 bioQuery. All rights reserved."
+  },
+  "language": {
+    "fr": "FR",
+    "en": "EN"
+  }
+}

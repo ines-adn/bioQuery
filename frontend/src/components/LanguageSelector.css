@@ -1,0 +1,32 @@
+.language-selector {
+  display: flex;
+  align-items: center;
+  margin-left: 20px;
+}
+
+.language-btn {
+  background: none;
+  border: none;
+  color: var(--gray-700);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 5px;
+  transition: var(--transition);
+  line-height: 1;
+}
+
+.language-btn:hover {
+  color: var(--primary);
+}
+
+.language-btn.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.language-divider {
+  color: var(--gray-400);
+  margin: 0 3px;
+  font-size: 14px;
+}

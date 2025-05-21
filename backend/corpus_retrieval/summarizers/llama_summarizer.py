@@ -32,7 +32,9 @@ LLM_TYPE_OPENAI = "openai"
 class IngredientSummarizer:
     """Classe pour résumer les informations sur un ingrédient à partir des chunks stockés."""
     
-    def __init__(self, config_file="config.json", llm_type=None, model_name=None, temperature=None):
+    def __init__(self, config_file="config.json", llm_type=None, model_name=None, temperature=None, 
+             max_tokens_ollama=2000, max_chunks_ollama=10):
+        
         self.config = load_config(config_file)
         self.embedding_manager = EmbeddingManager(config_file)
         
@@ -48,11 +50,15 @@ class IngredientSummarizer:
         # Température commune
         self.temperature = temperature or self.config.get("llm_temperature", 0.5)
         
+        # Nouveaux paramètres pour Ollama
+        self.max_tokens_ollama = max_tokens_ollama
+        self.max_chunks_ollama = max_chunks_ollama
+        
         self._llm = None
-    
+
     @property
     def llm(self):
-        """Charge le modèle LLM de manière paresseuse."""
+        """Charge le modèle LLM de manière paresseuse avec les bons paramètres."""
         if self._llm is None:
             try:
                 if self.llm_type == LLM_TYPE_OPENAI:
@@ -65,7 +71,13 @@ class IngredientSummarizer:
                     )
                     logger.info(f"Modèle OpenAI {self.openai_model} chargé avec succès.")
                 else:  # Par défaut, utiliser Ollama
-                    self._llm = LlamaLLM(model_name=self.ollama_model, temperature=self.temperature)
+                    # Ajouter les paramètres de restriction de tokens
+                    self._llm = LlamaLLM(
+                        model_name=self.ollama_model, 
+                        temperature=self.temperature
+                    )
+                    # Note: ChatOllama n'a pas de paramètre max_tokens direct, nous allons contrôler 
+                    # cela en réduisant la taille des données envoyées
                     logger.info(f"Modèle Ollama {self.ollama_model} chargé avec succès.")
             except Exception as e:
                 logger.error(f"Erreur lors du chargement du modèle: {e}")
@@ -73,7 +85,16 @@ class IngredientSummarizer:
         return self._llm
     
     def retrieve_chunks(self, ingredient: str, limit: int = 100) -> List[Document]:
-        """Récupère les chunks stockés pour un ingrédient donné."""
+        """Récupère les chunks stockés pour un ingrédient donné avec limite adaptative."""
+
+        # Utiliser une limite adaptée selon le type de LLM
+        if limit is None:
+            if self.llm_type == LLM_TYPE_OLLAMA:
+                limit = self.max_chunks_ollama
+            else:
+                limit = 100  # Limite par défaut pour OpenAI
+        
+        logger.info(f"Récupération de chunks pour {ingredient} avec limite: {limit}")
         collection_name = self.embedding_manager.get_collection_name(ingredient)
         
         try:
@@ -125,18 +146,41 @@ class IngredientSummarizer:
             logger.error(f"Erreur lors de la récupération des chunks pour {ingredient}: {e}")
             return []
     
-    def generate_summary_prompt(self, ingredient: str, chunks: List[Document]) -> str:
-        """Génère le prompt pour le résumé à partir des chunks."""
+    def generate_summary_prompt(self, ingredient: str, chunks: List[Document], language: str = "fr") -> str:
+        """Génère le prompt pour le résumé à partir des chunks avec taille optimisée."""
         # Extraire le contenu des chunks
         contents = [doc.page_content for doc in chunks]
+        
+        # Réduire la taille des contenus pour Ollama
+        if self.llm_type == LLM_TYPE_OLLAMA:
+            # Limiter chaque chunk à environ 300 caractères
+            contents = [content[:300] + "..." if len(content) > 300 else content 
+                    for content in contents]
         
         # Joindre les contenus avec un séparateur
         context = "\n---\n".join(contents)
         
-        # Construire le prompt complet - version plus concise
-        prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+        # Détermine la langue de sortie
+        output_language = "Français" if language == "fr" else "English"
+        
+        # Construire le prompt - version simplifiée pour Ollama
+        if self.llm_type == LLM_TYPE_OLLAMA:
+            prompt = f"""Résume les informations scientifiques sur l'ingrédient "{ingredient}" en {output_language}, en 300 mots maximum:
+            
+            Points à inclure:
+            1. Définition, origine et composition
+            2. Propriétés et bénéfices scientifiquement prouvés
+            3. Précautions et limitations
+            4. Utilisation (voie cutanée, orale, etc.)
+            
+            Contexte:
+            {context}
+            """
+        else:
+            # Utiliser le prompt complet pour OpenAI
+            prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
 
-            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en Français, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en {output_language}, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
 
             OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
 
@@ -168,46 +212,17 @@ class IngredientSummarizer:
             IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
             IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
             
-            IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
+            IMPORTANT : Le paragraphe doit être en {output_language} et compter 300 mots.
             Extraits sur {ingredient} :
             {context}
-
-            Ton texte doit :
-
-            1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
-
-            2. Développer les propriétés scientifiquement établies en précisant systématiquement :
-            - La nature des études (in vitro, animales, essais cliniques humains)
-            - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
-            - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
-
-            3. Présenter de façon équilibrée :
-            - Les bénéfices démontrés avec leur niveau de preuve scientifique
-            - Les limitations, effets indésirables ou précautions d'emploi
-            - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
-
-            4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
-
-            5. Conclure avec une synthèse objective de l'état actuel des connaissances 
-            6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
-
-            Le style doit être :
-            - Formel et encyclopédique, sans formulations commerciales ou subjectives
-            - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
-            - Structuré avec des transitions logiques entre les différents aspects abordés
-            - Accessible, en expliquant systématiquement les termes techniques
-
-            IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
-            IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
-            
-            IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
-                """
+            """
+        
         prompt_size = len(prompt)
         logger.info(f"Taille du prompt: {prompt_size} caractères, {len(prompt.split())} mots")
         
         return prompt
     
-    def summarize_ingredient(self, ingredient: str, max_chunks: int = 50) -> Dict[str, Any]:
+    def summarize_ingredient(self, ingredient: str, max_chunks: int = 50, language: str = "fr") -> Dict[str, Any]:
         """Génère un résumé complet sur un ingrédient à partir des chunks stockés."""
         start_time = time.time()
         
@@ -217,16 +232,17 @@ class IngredientSummarizer:
             return {
                 "status": "error",
                 "message": f"Aucun chunk trouvé pour l'ingrédient {ingredient}.",
-                "ingredient": ingredient
+                "ingredient": ingredient,
+                "language": language
             }
         
         try:
             # Pour les grands volumes, utiliser l'approche par lots si nécessaire
             if len(chunks) > 10 and self.llm_type == LLM_TYPE_OPENAI:
-                summary = self.summarize_in_batches(ingredient, chunks)
+                summary = self.summarize_in_batches(ingredient, chunks, language=language)
             else:
                 # Générer le prompt
-                prompt = self.generate_summary_prompt(ingredient, chunks)
+                prompt = self.generate_summary_prompt(ingredient, chunks, language=language)
                 
                 # Créer le template pour LangChain
                 prompt_template = PromptTemplate.from_template(prompt)
@@ -243,12 +259,13 @@ class IngredientSummarizer:
             
             return {
                 "status": "success",
-                "message": f"Résumé généré avec succès pour {ingredient}.",
+                "message": f"Résumé généré avec succès pour {ingredient} en {language}.",
                 "ingredient": ingredient,
                 "summary": summary,
                 "chunks_processed": len(chunks),
                 "processing_time": processing_time,
-                "summary_id": str(uuid.uuid4())
+                "summary_id": str(uuid.uuid4()),
+                "language": language
             }
             
         except Exception as e:
@@ -256,20 +273,24 @@ class IngredientSummarizer:
             return {
                 "status": "error",
                 "message": f"Erreur lors de la génération du résumé: {str(e)}",
-                "ingredient": ingredient
+                "ingredient": ingredient,
+                "language": language
             }
     
-    def summarize_in_batches(self, ingredient: str, chunks: List[Document], batch_size: int = 50) -> str:
+    def summarize_in_batches(self, ingredient: str, chunks: List[Document], batch_size: int = 50, language: str = "fr") -> str:
         """Génère un résumé progressivement par lots de documents."""
+        # Détermine la langue de sortie
+        output_language = "Français" if language == "fr" else "English"
+        
         # Résumer par lots
         batch_summaries = []
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i:i+batch_size]
             logger.info(f"Traitement du lot {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}")
             
-            prompt = prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+            prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
 
-            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en Français, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en {output_language}, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
 
             OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
 
@@ -301,40 +322,10 @@ class IngredientSummarizer:
             IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
             IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
             
-            IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
+            IMPORTANT : Le paragraphe doit être en {output_language} et compter 300 mots.
             Extraits sur {ingredient} :
-
-            Ton texte doit :
-
-            1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
-
-            2. Développer les propriétés scientifiquement établies en précisant systématiquement :
-            - La nature des études (in vitro, animales, essais cliniques humains)
-            - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
-            - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
-
-            3. Présenter de façon équilibrée :
-            - Les bénéfices démontrés avec leur niveau de preuve scientifique
-            - Les limitations, effets indésirables ou précautions d'emploi
-            - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
-
-            4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
-
-            5. Conclure avec une synthèse objective de l'état actuel des connaissances 
-            6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
-
-            Le style doit être :
-            - Formel et encyclopédique, sans formulations commerciales ou subjectives
-            - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
-            - Structuré avec des transitions logiques entre les différents aspects abordés
-            - Accessible, en expliquant systématiquement les termes techniques
-
-            IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
-            IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
-            
-            IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
-                """
-     
+            """
+    
             prompt += "\n---\n".join([doc.page_content for doc in batch])
             
             batch_summary = self.llm.invoke(prompt).content
@@ -344,7 +335,7 @@ class IngredientSummarizer:
         summaries_joined = "\n\n".join([f"Résumé {i+1}:\n{summary}" for i, summary in enumerate(batch_summaries)])
         final_prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
 
-        Voici plusieurs résumés partiels sur l'ingrédient "{ingredient}". Synthétise-les en un paragraphe détaillé (300 mots), en Français, dans un style encyclopédique similaire à Wikipedia.
+        Voici plusieurs résumés partiels sur l'ingrédient "{ingredient}". Synthétise-les en un paragraphe détaillé (300 mots), en {output_language}, dans un style encyclopédique similaire à Wikipedia.
 
         OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
 
@@ -376,7 +367,7 @@ class IngredientSummarizer:
         IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les résumés fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources.
         IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
 
-        IMPORTANT : Le paragraphe doit être en Français et compter 300 mots.
+        IMPORTANT : Le paragraphe doit être en {output_language} et compter 300 mots.
 
         Résumés à synthétiser :
         {summaries_joined}
@@ -422,7 +413,9 @@ class IngredientSummarizer:
 
 
 def generate_ingredient_summary(ingredient: str, save_to_file: bool = True, max_chunks: int = 50, 
-                               llm_type: str = None, model_name: str = None) -> Dict[str, Any]:
+                              llm_type: str = None, model_name: str = None,
+                              max_tokens_ollama: int = 2000, max_chunks_ollama: int = 10,
+                              language: str = "fr") -> Dict[str, Any]:
     """
     Fonction utilitaire pour générer un résumé pour un ingrédient.
     Cette fonction peut être appelée directement depuis d'autres modules.
@@ -430,27 +423,44 @@ def generate_ingredient_summary(ingredient: str, save_to_file: bool = True, max_
     Args:
         ingredient (str): Nom de l'ingrédient à résumer
         save_to_file (bool): Sauvegarder le résumé dans un fichier
-        max_chunks (int): Nombre maximum de chunks à traiter
+        max_chunks (int): Nombre maximum de chunks à traiter pour OpenAI
         llm_type (str): Type de LLM à utiliser ('openai' ou 'ollama')
         model_name (str): Nom du modèle à utiliser (dépend du type de LLM)
+        max_tokens_ollama (int): Limite de tokens pour Ollama
+        max_chunks_ollama (int): Nombre maximum de chunks à traiter pour Ollama
+        language (str): Langue du résumé ("fr" pour français, "en" pour anglais)
     
     Returns:
         Dict[str, Any]: Résultat du processus de génération de résumé
     """
     summarizer = IngredientSummarizer(
         llm_type=llm_type,
-        model_name=model_name
+        model_name=model_name,
+        max_tokens_ollama=max_tokens_ollama,
+        max_chunks_ollama=max_chunks_ollama
     )
     
+    # Si on utilise Ollama, on utilise la limite spécifique d'Ollama
+    actual_max_chunks = max_chunks
+    if llm_type == LLM_TYPE_OLLAMA or (llm_type is None and summarizer.llm_type == LLM_TYPE_OLLAMA):
+        actual_max_chunks = max_chunks_ollama
+    
     # Générer le résumé
-    summary_result = summarizer.summarize_ingredient(ingredient, max_chunks=max_chunks)
+    summary_result = summarizer.summarize_ingredient(
+        ingredient=ingredient, 
+        max_chunks=actual_max_chunks,
+        language=language
+    )
     
     # Si le résumé a été généré avec succès et qu'on veut le sauvegarder
     if summary_result.get("status") == "success" and save_to_file:
+        # Ajouter le code langue au nom du fichier
+        lang_suffix = f"_{language}" if language != "fr" else ""
+        
         save_result = summarizer.save_summary(
             ingredient=ingredient,
             summary=summary_result.get("summary", ""),
-            summary_id=summary_result.get("summary_id")
+            summary_id=summary_result.get("summary_id") + lang_suffix
         )
         
         summary_result["save_result"] = save_result
