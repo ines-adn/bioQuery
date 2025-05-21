@@ -4,9 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 
-from corpus_retrieval.summarizers.llama_summarizer import generate_ingredient_summary
-from corpus_retrieval.summarizers.llama_summarizer import LLM_TYPE_OPENAI, LLM_TYPE_OLLAMA
-
 # Vérifier la variable d'environnement OpenAI au démarrage
 has_openai_key = os.environ.get("OPENAI_API_KEY") is not None
 if has_openai_key:
@@ -14,7 +11,13 @@ if has_openai_key:
 else:
     print("ATTENTION: Variable d'environnement OPENAI_API_KEY non détectée.")
 
+# Importer les modules nécessaires pour le traitement complet
+from corpus_retrieval.summarizers.llama_summarizer import generate_ingredient_summary
+from corpus_retrieval.summarizers.llama_summarizer import LLM_TYPE_OPENAI, LLM_TYPE_OLLAMA
 
+# Importer les modules pour le traitement des PDFs et la création d'embeddings
+from corpus_retrieval.parsers.article_chunker import process_downloaded_articles
+from corpus_retrieval.parsers.embedding_store import store_article_chunks
 
 # Point d'entrée du backend
 app = FastAPI()
@@ -64,11 +67,59 @@ async def search_semantic_scholars(ingredient: str, use_cache: bool = True, use_
     )
     return {"results": results}
 
+@app.get("/process/pdfs/")
+async def process_pdfs(ingredient: str, overwrite: bool = False):
+    """
+    Traite les PDFs téléchargés pour un ingrédient donné et stocke les embeddings.
+    """
+    # Normaliser le nom de l'ingrédient
+    ingredient_normalized = ingredient.lower().replace(" ", "_")
+    
+    # 1. Extraire le texte des PDFs et créer les chunks
+    processing_results = process_downloaded_articles(ingredient_normalized)
+    
+    if processing_results.get("status") != "success":
+        return {
+            "status": "error",
+            "message": f"Erreur lors du traitement des PDFs: {processing_results.get('message')}",
+            "ingredient": ingredient,
+            "processing_results": processing_results
+        }
+    
+    # 2. Stocker les chunks dans la base de données vectorielle
+    chunks = processing_results.get("chunks", [])
+    
+    if not chunks:
+        return {
+            "status": "warning",
+            "message": f"Aucun chunk extrait des PDFs pour {ingredient}.",
+            "ingredient": ingredient,
+            "processing_results": processing_results
+        }
+    
+    embedding_results = store_article_chunks(chunks, ingredient_normalized, overwrite)
+    
+    return {
+        "status": embedding_results.get("status"),
+        "message": f"Traitement des PDFs terminé pour {ingredient}.",
+        "ingredient": ingredient,
+        "processing_results": processing_results,
+        "embedding_results": embedding_results
+    }
+
 @app.get("/search/complete/")
-async def search_complete(ingredient: str, use_openai: bool = False, use_cache: bool = True, use_openai_for_query: bool = None):
+async def search_complete(
+    ingredient: str, 
+    use_openai: bool = False, 
+    use_cache: bool = True, 
+    use_openai_for_query: bool = None,
+    max_chunks: int = 10,
+    process_pdfs: bool = True  # Activer le traitement automatique des PDFs
+):
     """
     Effectue le processus complet avec OpenAI si demandé ou si la variable d'environnement est définie.
     Utilise le cache local pour les articles si disponible.
+    Traite automatiquement les PDFs si process_pdfs=True.
     """
     try:
         # Vérifier si une API key OpenAI est définie
@@ -83,6 +134,11 @@ async def search_complete(ingredient: str, use_openai: bool = False, use_cache: 
         print(f"[DEBUG] use_openai_model (décision finale): {use_openai_model}")
         print(f"[DEBUG] use_cache (paramètre): {use_cache}")
         print(f"[DEBUG] use_openai_for_query (paramètre): {use_openai_for_query if use_openai_for_query is not None else 'auto'}")
+        print(f"[DEBUG] max_chunks (paramètre): {max_chunks}")
+        print(f"[DEBUG] process_pdfs (paramètre): {process_pdfs}")
+        
+        # Normaliser le nom de l'ingrédient pour la cohérence
+        ingredient_normalized = ingredient.lower().replace(" ", "_")
         
         # 1. Recherche d'articles (avec support de cache et option OpenAI pour la requête)
         semantic_results = search_and_download_from_semantic_scholars(
@@ -107,7 +163,30 @@ async def search_complete(ingredient: str, use_openai: bool = False, use_cache: 
                 "summary": None
             }
         
-        # 2. Génération du résumé
+        # 2. Si activé, traiter les PDFs et créer les embeddings
+        if process_pdfs:
+            print(f"Traitement automatique des PDFs pour {ingredient_normalized}...")
+            
+            # 2.1 Extraire le texte des PDFs et créer les chunks
+            processing_results = process_downloaded_articles(ingredient_normalized)
+            
+            if processing_results.get("status") != "success":
+                print(f"Avertissement: Problème lors du traitement des PDFs: {processing_results.get('message')}")
+            else:
+                chunks = processing_results.get("chunks", [])
+                
+                if not chunks:
+                    print(f"Avertissement: Aucun chunk extrait des PDFs pour {ingredient}")
+                else:
+                    # 2.2 Stocker les chunks dans la base de données vectorielle
+                    embedding_results = store_article_chunks(chunks, ingredient_normalized, overwrite=False)
+                    
+                    if embedding_results.get("status") != "success":
+                        print(f"Avertissement: Problème lors du stockage des embeddings: {embedding_results.get('message')}")
+                    else:
+                        print(f"Embeddings créés avec succès: {embedding_results.get('stored_chunks')} chunks stockés")
+        
+        # 3. Génération du résumé
         try:
             # Déterminer le type de LLM à utiliser
             llm_type = LLM_TYPE_OPENAI if use_openai_model else LLM_TYPE_OLLAMA
@@ -122,10 +201,11 @@ async def search_complete(ingredient: str, use_openai: bool = False, use_cache: 
                 model_name = None
             
             # Mise à jour des paramètres pour correspondre à la signature actuelle
+            # Avec un nombre réduit de chunks pour accélérer le traitement
             summary_result = generate_ingredient_summary(
-                ingredient=ingredient,
+                ingredient=ingredient_normalized,  # Utiliser le nom normalisé
                 save_to_file=True,
-                max_chunks=50,
+                max_chunks=max_chunks,
                 llm_type=llm_type,
                 model_name=model_name
             )
@@ -155,6 +235,7 @@ async def search_complete(ingredient: str, use_openai: bool = False, use_cache: 
             "message": f"Recherche complète et génération de résumé réussies pour {ingredient}.",
             "source": source_info,
             "query_model": query_model,
+            "max_chunks_used": max_chunks,
             "semantic_results": top_articles,
             "summary": {
                 "text": summary_result.get("summary"),
