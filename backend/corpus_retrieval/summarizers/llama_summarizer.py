@@ -25,16 +25,29 @@ class LlamaLLM(ChatOllama):
             request_timeout=1800.0  # 30 minutes de timeout
         )
 
+# Constantes pour les types de LLM
+LLM_TYPE_OLLAMA = "ollama"
+LLM_TYPE_OPENAI = "openai"
+
 class IngredientSummarizer:
     """Classe pour résumer les informations sur un ingrédient à partir des chunks stockés."""
     
-    def __init__(self, config_file="config.json", use_openai=True, openai_model="gpt-3.5-turbo"):
+    def __init__(self, config_file="config.json", llm_type=None, model_name=None, temperature=None):
         self.config = load_config(config_file)
         self.embedding_manager = EmbeddingManager(config_file)
-        self.model_name = self.config.get("llm_model", "llama3.1")
-        self.temperature = self.config.get("llm_temperature", 0.5)
-        self.use_openai = use_openai
-        self.openai_model = openai_model
+        
+        # Utilisation plus explicite du type de LLM et du modèle
+        self.llm_type = llm_type or self.config.get("llm_type", LLM_TYPE_OPENAI)
+        
+        # Paramètres pour OpenAI
+        self.openai_model = model_name or self.config.get("openai_model", "gpt-3.5-turbo")
+        
+        # Paramètres pour Ollama
+        self.ollama_model = model_name or self.config.get("ollama_model", "llama3.1")
+        
+        # Température commune
+        self.temperature = temperature or self.config.get("llm_temperature", 0.5)
+        
         self._llm = None
     
     @property
@@ -42,15 +55,18 @@ class IngredientSummarizer:
         """Charge le modèle LLM de manière paresseuse."""
         if self._llm is None:
             try:
-                if self.use_openai:
+                if self.llm_type == LLM_TYPE_OPENAI:
+                    if not os.environ.get("OPENAI_API_KEY"):
+                        logger.warning("Variable d'environnement OPENAI_API_KEY non définie. Vérifiez votre configuration.")
+                    
                     self._llm = ChatOpenAI(
                         model=self.openai_model,
                         temperature=self.temperature
                     )
                     logger.info(f"Modèle OpenAI {self.openai_model} chargé avec succès.")
-                else:
-                    self._llm = LlamaLLM(model_name=self.model_name, temperature=self.temperature)
-                    logger.info(f"Modèle LLM local {self.model_name} chargé avec succès.")
+                else:  # Par défaut, utiliser Ollama
+                    self._llm = LlamaLLM(model_name=self.ollama_model, temperature=self.temperature)
+                    logger.info(f"Modèle Ollama {self.ollama_model} chargé avec succès.")
             except Exception as e:
                 logger.error(f"Erreur lors du chargement du modèle: {e}")
                 raise
@@ -206,7 +222,7 @@ class IngredientSummarizer:
         
         try:
             # Pour les grands volumes, utiliser l'approche par lots si nécessaire
-            if len(chunks) > 10 and self.use_openai:
+            if len(chunks) > 10 and self.llm_type == LLM_TYPE_OPENAI:
                 summary = self.summarize_in_batches(ingredient, chunks)
             else:
                 # Générer le prompt
@@ -325,7 +341,6 @@ class IngredientSummarizer:
             batch_summaries.append(batch_summary)
         
         # Résumer les résumés
-        # Résumer les résumés
         summaries_joined = "\n\n".join([f"Résumé {i+1}:\n{summary}" for i, summary in enumerate(batch_summaries)])
         final_prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
 
@@ -407,14 +422,24 @@ class IngredientSummarizer:
 
 
 def generate_ingredient_summary(ingredient: str, save_to_file: bool = True, max_chunks: int = 50, 
-                               use_openai: bool = True, openai_model: str = "gpt-3.5-turbo") -> Dict[str, Any]:
+                               llm_type: str = None, model_name: str = None) -> Dict[str, Any]:
     """
     Fonction utilitaire pour générer un résumé pour un ingrédient.
     Cette fonction peut être appelée directement depuis d'autres modules.
+    
+    Args:
+        ingredient (str): Nom de l'ingrédient à résumer
+        save_to_file (bool): Sauvegarder le résumé dans un fichier
+        max_chunks (int): Nombre maximum de chunks à traiter
+        llm_type (str): Type de LLM à utiliser ('openai' ou 'ollama')
+        model_name (str): Nom du modèle à utiliser (dépend du type de LLM)
+    
+    Returns:
+        Dict[str, Any]: Résultat du processus de génération de résumé
     """
     summarizer = IngredientSummarizer(
-        use_openai=use_openai,
-        openai_model=openai_model
+        llm_type=llm_type,
+        model_name=model_name
     )
     
     # Générer le résumé
@@ -442,38 +467,42 @@ if __name__ == "__main__":
     parser.add_argument("ingredient", help="Nom de l'ingrédient à résumer")
     parser.add_argument("--no-save", action="store_true", help="Ne pas sauvegarder le résumé dans un fichier")
     parser.add_argument("--max-chunks", type=int, default=50, help="Nombre maximum de chunks à traiter")
-    parser.add_argument("--openai", action="store_true", help="Utiliser OpenAI au lieu de Llama local")
-    parser.add_argument("--model", default="gpt-3.5-turbo", help="Modèle OpenAI à utiliser (si --openai est spécifié)")
+    parser.add_argument("--llm-type", choices=[LLM_TYPE_OPENAI, LLM_TYPE_OLLAMA], default=None, 
+                       help=f"Type de LLM à utiliser ({LLM_TYPE_OPENAI} ou {LLM_TYPE_OLLAMA})")
+    parser.add_argument("--model", default=None, help="Nom du modèle à utiliser (ex: gpt-3.5-turbo pour OpenAI, llama3.1 pour Ollama)")
     
     args = parser.parse_args()
     
-    # Vérifier si une variable d'environnement OPENAI_API_KEY existe
-    if args.openai and not os.environ.get("OPENAI_API_KEY"):
-        print("ATTENTION: L'option --openai est activée mais la variable d'environnement OPENAI_API_KEY n'est pas définie.")
-        print("Vous pouvez la définir avec: export OPENAI_API_KEY=votre_clé_api")
-        use_openai = False
-        print("Utilisation du modèle local par défaut...")
-    else:
-        # Si la clé API existe et que l'utilisateur n'a pas explicitement choisi le modèle local,
-        # utiliser OpenAI par défaut
-        if os.environ.get("OPENAI_API_KEY") and not args.openai:
+    # Déterminer le type de LLM à utiliser
+    llm_type = args.llm_type
+    
+    # Si aucun type n'est spécifié mais qu'une clé OpenAI existe, utiliser OpenAI par défaut
+    if llm_type is None:
+        if os.environ.get("OPENAI_API_KEY"):
+            llm_type = LLM_TYPE_OPENAI
             print("Variable d'environnement OPENAI_API_KEY détectée. Utilisation d'OpenAI par défaut.")
-            print("Pour utiliser le modèle local, ajoutez l'option --no-openai")
-            use_openai = True
         else:
-            use_openai = args.openai
+            llm_type = LLM_TYPE_OLLAMA
+            print("Aucune variable d'environnement OPENAI_API_KEY détectée. Utilisation d'Ollama par défaut.")
+    
+    # Vérifier si une clé API OpenAI est nécessaire mais manquante
+    if llm_type == LLM_TYPE_OPENAI and not os.environ.get("OPENAI_API_KEY"):
+        print("ATTENTION: Le type LLM OpenAI est spécifié mais la variable d'environnement OPENAI_API_KEY n'est pas définie.")
+        print("Vous pouvez la définir avec: export OPENAI_API_KEY=votre_clé_api")
+        sys.exit(1)
     
     print(f"Génération du résumé pour l'ingrédient: {args.ingredient}")
     print(f"Sauvegarde dans un fichier: {'Non' if args.no_save else 'Oui'}")
     print(f"Nombre maximum de chunks: {args.max_chunks}")
-    print(f"Utilisation d'OpenAI: {'Oui - ' + args.model if use_openai else 'Non - Modèle local'}")
+    print(f"Type de LLM: {llm_type}")
+    print(f"Modèle: {args.model or 'Par défaut selon le type de LLM'}")
     
     results = generate_ingredient_summary(
         ingredient=args.ingredient,
         save_to_file=not args.no_save,
         max_chunks=args.max_chunks,
-        use_openai=use_openai,
-        openai_model=args.model
+        llm_type=llm_type,
+        model_name=args.model
     )
     
     # Afficher les résultats
