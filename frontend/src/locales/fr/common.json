@@ -13,7 +13,15 @@
     "label": "Composant :",
     "placeholder": "Entrez un composant, un ingrédient...",
     "button": "Explorer",
-    "error": "Veuillez entrer un composant ou un ingrédient"
+    "error": "Veuillez entrer un composant ou un ingrédient",
+    "noArticlesFound": "Aucun article scientifique trouvé pour cet ingrédient.",
+    "status": {
+      "starting": "Recherche en cours...",
+      "searching": "Recherche d'articles scientifiques...",
+      "analyzing": "Analyse des documents...",
+      "generating": "Génération du résumé...",
+      "completed": "Recherche terminée !"
+    }
   },
   "results": {
     "title": "Résultats de recherche",

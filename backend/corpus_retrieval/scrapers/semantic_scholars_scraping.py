@@ -12,16 +12,23 @@ class LlamaLLM(ChatOllama):
             model=model_name,
             temperature=temperature,
             base_url="http://localhost:11434",
+            num_predict=300,
+            top_k=10,
+            top_p=0.9,
         )
 
+
+config = "config.json"
 class SemanticScolarSearch:
     def __init__(self, ingredient, use_openai=None):
         self.ingredient = ingredient
         
         # Déterminer automatiquement si on utilise OpenAI
         if use_openai is None:
-            # Vérifier si la variable d'environnement OPENAI_API_KEY est définie
-            self.use_openai = os.environ.get("OPENAI_API_KEY") is not None
+            # D'abord vérifier la config, puis la variable d'environnement
+            config_llm_type = config.get("llm_type", "openai") if config else "openai"
+            self.use_openai = (config_llm_type == "openai" and 
+                            os.environ.get("OPENAI_API_KEY") is not None)
         else:
             self.use_openai = use_openai
             
@@ -31,7 +38,9 @@ class SemanticScolarSearch:
             self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.5)
         else:
             print(f"Utilisation de Llama local pour générer la requête de recherche pour {ingredient}")
-            self.llm = LlamaLLM("llama3.1")
+            # Charger la config depuis le fichier config.json si possible
+            llama_model_name = config.get("ollama_model", "llama3.1")  # Use correct key with fallback
+            self.llm = LlamaLLM(llama_model_name)
 
     def generate_query(self) -> str:
         """ Utilise le LLM pour générer une requête optimisée pour Google Scholar. """
@@ -39,7 +48,7 @@ class SemanticScolarSearch:
         pour trouver des articles académiques sur les effets de {self.ingredient} sur le corps humain (peau, santé, ...).
         
         Exemple de sortie attendue : 
-        "Effects of Aloe Vera on skin hydration"
+        "Aloe Vera skin hydration"
         
         Génère uniquement la requête, sans explications.
         Ta requête doit contenir au maximum quatre mots-clés.
@@ -225,12 +234,15 @@ def search_and_download_from_semantic_scholars(ingredient, use_cache=True, use_o
     os.makedirs(folder_path, exist_ok=True)
     
     # Vérifier la variable d'environnement OpenAI pour décider quel LLM utiliser
+    config_llm_type = config.get("llm_type", "openai")
     has_openai_key = os.environ.get("OPENAI_API_KEY") is not None
-    
+
     # Si use_openai_for_query est explicitement défini, l'utiliser
-    # Sinon, utiliser OpenAI si la clé API est disponible
-    effective_use_openai = use_openai_for_query if use_openai_for_query is not None else has_openai_key
-    
+    # Sinon, utiliser la configuration et vérifier la clé API
+    if use_openai_for_query is not None:
+        effective_use_openai = use_openai_for_query
+    else:
+        effective_use_openai = (config_llm_type == "openai" and has_openai_key)
     # Log pour debug
     print(f"[DEBUG] Variable d'environnement OPENAI_API_KEY présente: {has_openai_key}")
     print(f"[DEBUG] Utilisation d'OpenAI pour la requête: {effective_use_openai}")

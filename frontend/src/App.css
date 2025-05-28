@@ -742,3 +742,88 @@ button:disabled {
     gap: 4px;
   }
 }
+
+/* Status message styles - matching the existing design system */
+.status-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px 20px;
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: var(--border-radius);
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.status-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--primary-light);
+  border-top: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Enhanced error message to match the design system */
+.error-message {
+  margin-top: 16px;
+  padding: 16px 20px;
+  background-color: #fef2f2;
+  border: 1px solid var(--danger);
+  border-radius: var(--border-radius);
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.error-message::before {
+  content: '⚠️';
+  margin-right: 8px;
+}
+
+/* Success state for status message when completed */
+.status-message.success {
+  background-color: var(--secondary-light);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.status-message.success .status-spinner {
+  display: none;
+}
+
+.status-message.success::before {
+  content: '✓';
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+/* Responsive adjustments for status messages */
+@media (max-width: 768px) {
+  .status-message,
+  .error-message {
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-top: 12px;
+  }
+  
+  .status-spinner {
+    width: 14px;
+    height: 14px;
+  }
+}

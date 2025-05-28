@@ -13,7 +13,15 @@
     "label": "Component:",
     "placeholder": "Enter a component, an ingredient...",
     "button": "Explore",
-    "error": "Please enter a component or ingredient"
+    "error": "Please enter a component or ingredient",
+    "noArticlesFound": "No scientific articles found for this ingredient.",
+    "status": {
+      "starting": "Starting search...",
+      "searching": "Searching for scientific articles...",
+      "analyzing": "Analyzing documents...",
+      "generating": "Generating summary...",
+      "completed": "Search completed!"
+    }
   },
   "results": {
     "title": "Search Results",

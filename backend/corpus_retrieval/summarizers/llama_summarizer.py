@@ -22,7 +22,10 @@ class LlamaLLM(ChatOllama):
             model=model_name,
             temperature=temperature,
             base_url="http://localhost:11434",
-            request_timeout=1800.0  # 30 minutes de timeout
+            request_timeout=1800.0,  # 30 minutes de timeout
+            num_predict=300,
+            top_k=10,
+            top_p=0.9,
         )
 
 # Constantes pour les types de LLM
@@ -154,7 +157,7 @@ class IngredientSummarizer:
         # Réduire la taille des contenus pour Ollama
         if self.llm_type == LLM_TYPE_OLLAMA:
             # Limiter chaque chunk à environ 300 caractères
-            contents = [content[:300] + "..." if len(content) > 300 else content 
+            contents = [content[:200] + "..." if len(content) > 200 else content 
                     for content in contents]
         
         # Joindre les contenus avec un séparateur
@@ -165,7 +168,7 @@ class IngredientSummarizer:
         
         # Construire le prompt - version simplifiée pour Ollama
         if self.llm_type == LLM_TYPE_OLLAMA:
-            prompt = f"""Résume les informations scientifiques sur l'ingrédient "{ingredient}" en {output_language}, en 300 mots maximum:
+            prompt = f"""Résume les informations scientifiques sur l'ingrédient "{ingredient}" en {output_language}, en 200 mots maximum:
             
             Points à inclure:
             1. Définition, origine et composition
@@ -487,14 +490,22 @@ if __name__ == "__main__":
     llm_type = args.llm_type
     
     # Si aucun type n'est spécifié mais qu'une clé OpenAI existe, utiliser OpenAI par défaut
+    # Si aucun type n'est spécifié, utiliser la configuration
     if llm_type is None:
-        if os.environ.get("OPENAI_API_KEY"):
+        config = load_config()
+        config_llm_type = config.get("llm_type", LLM_TYPE_OPENAI) if config else LLM_TYPE_OPENAI
+        
+        if config_llm_type == LLM_TYPE_OPENAI and os.environ.get("OPENAI_API_KEY"):
             llm_type = LLM_TYPE_OPENAI
-            print("Variable d'environnement OPENAI_API_KEY détectée. Utilisation d'OpenAI par défaut.")
-        else:
+            print("Configuration OpenAI détectée avec clé API. Utilisation d'OpenAI.")
+        elif config_llm_type == LLM_TYPE_OLLAMA:
             llm_type = LLM_TYPE_OLLAMA
-            print("Aucune variable d'environnement OPENAI_API_KEY détectée. Utilisation d'Ollama par défaut.")
-    
+            print("Configuration Ollama détectée. Utilisation d'Ollama.")
+        else:
+            # Fallback si config OpenAI mais pas de clé API
+            llm_type = LLM_TYPE_OLLAMA
+            print("Configuration OpenAI mais pas de clé API. Utilisation d'Ollama par défaut.")
+
     # Vérifier si une clé API OpenAI est nécessaire mais manquante
     if llm_type == LLM_TYPE_OPENAI and not os.environ.get("OPENAI_API_KEY"):
         print("ATTENTION: Le type LLM OpenAI est spécifié mais la variable d'environnement OPENAI_API_KEY n'est pas définie.")
