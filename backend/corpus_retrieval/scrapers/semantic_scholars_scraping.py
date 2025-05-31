@@ -7,8 +7,6 @@ import os
 import glob
 from datetime import datetime
 
-last_request_time = None
-
 class LlamaLLM(ChatOllama):
     def __init__(self, model_name: str, temperature: float = 0.5):
         super().__init__(
@@ -162,7 +160,6 @@ def download_pdf(pdf_url, save_path="article.pdf"):
 # Recherche des articles sur Semantic Scholar
 def search_semantic_scholar(query, num_results=3):
     """ Recherche des articles sur Semantic Scholar et retourne leurs informations. """
-    global last_request_time
     
     if not query or not query.strip():
         print("Requête vide ou invalide")
@@ -179,12 +176,8 @@ def search_semantic_scholar(query, num_results=3):
     retries = 3
     for attempt in range(retries):
         try:
-            print(f"Making request at {datetime.now()}")
-            print(f"Last request was at: {last_request_time if last_request_time else 'Never'}")
             
             response = requests.get(API_URL, params=params, timeout=30)
-
-            last_request_time = datetime.now()
             
             if response.status_code == 429:
                 print("Rate limit headers:")
@@ -293,7 +286,7 @@ def save_metadata(metadata, folder_path, ingredient):
     except Exception as e:
         print(f"Erreur lors de la sauvegarde des métadonnées: {e}")
 
-def search_and_download_from_semantic_scholars(ingredient, use_cache=True, use_openai_for_query=None):
+def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_openai_for_query=None):
     """
     Lance la recherche et télécharge les articles, avec support du cache local.
     

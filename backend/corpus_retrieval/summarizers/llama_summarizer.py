@@ -165,64 +165,129 @@ class IngredientSummarizer:
         
         # Détermine la langue de sortie
         output_language = "Français" if language == "fr" else "English"
+        is_english = language == "en"
         
-        # Construire le prompt - version simplifiée pour Ollama
+        # Construire le prompt - version simplifiée pour Ollama MAIS dans la bonne langue
         if self.llm_type == LLM_TYPE_OLLAMA:
-            prompt = f"""Résume les informations scientifiques sur l'ingrédient "{ingredient}" en {output_language}, en 200 mots maximum:
-            
-            Points à inclure:
-            1. Définition, origine et composition
-            2. Propriétés et bénéfices scientifiquement prouvés
-            3. Précautions et limitations
-            4. Utilisation (voie cutanée, orale, etc.)
-            
-            Ne place pas de phrases introductives ou de conclusions. Donne simplement le résumé.
-            Contexte:
-            {context}
-            """
+            if is_english:
+                prompt = f"""You are a scientific expert. Summarize the scientific information about the ingredient "{ingredient}" in English, maximum 200 words.
+
+    Points to include:
+    1. Definition, origin and composition
+    2. Scientifically proven properties and benefits
+    3. Precautions and limitations
+    4. Usage (topical, oral, etc.)
+
+    Do not include introductory sentences or conclusions. Just provide the summary directly.
+
+    IMPORTANT: Write your response entirely in English.
+
+    Context:
+    {context}
+    """
+            else:
+                prompt = f"""Tu es un expert scientifique. Résume les informations scientifiques sur l'ingrédient "{ingredient}" en français, en 200 mots maximum.
+
+    Points à inclure:
+    1. Définition, origine et composition
+    2. Propriétés et bénéfices scientifiquement prouvés
+    3. Précautions et limitations
+    4. Utilisation (voie cutanée, orale, etc.)
+
+    Ne place pas de phrases introductives ou de conclusions. Donne simplement le résumé directement.
+
+    IMPORTANT: Écris ta réponse entièrement en français.
+
+    Contexte:
+    {context}
+    """
         else:
-            # Utiliser le prompt complet pour OpenAI
-            prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+            # Utiliser le prompt complet pour OpenAI - aussi adapté selon la langue
+            if is_english:
+                prompt = f"""You are an expert in scientific popularization specialized in natural ingredients.
 
-            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en {output_language}, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+    I will provide you with scientific article extracts about the ingredient "{ingredient}". Write a detailed paragraph in English, in an encyclopedic style similar to Wikipedia that synthesizes current scientific knowledge about this ingredient.
 
-            OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+    MAIN OBJECTIVE: Present a comprehensive, balanced and factual overview that highlights significant scientific discoveries while remaining accessible to non-specialists.
 
-            Ton texte doit :
+    Your text should:
 
-            1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+    1. Begin with a clear introduction defining the ingredient, its origin, main composition and historical and contemporary usage context
 
-            2. Développer les propriétés scientifiquement établies en précisant systématiquement :
-            - La nature des études (in vitro, animales, essais cliniques humains)
-            - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
-            - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+    2. Develop scientifically established properties by systematically specifying:
+    - The nature of studies (in vitro, animal studies, human clinical trials)
+    - Methodological quality of research (sample size, duration, etc.)
+    - Identified mechanisms of action when mentioned
 
-            3. Présenter de façon équilibrée :
-            - Les bénéfices démontrés avec leur niveau de preuve scientifique
-            - Les limitations, effets indésirables ou précautions d'emploi
-            - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+    3. Present in a balanced way:
+    - Demonstrated benefits with their level of scientific evidence
+    - Limitations, adverse effects or precautions for use
+    - Populations that may particularly benefit or should avoid this ingredient
 
-            4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+    4. Contextualize results in the global scientific landscape (consensus, controversies or ongoing research)
 
-            5. Conclure avec une synthèse objective de l'état actuel des connaissances 
-            6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+    5. Conclude with an objective synthesis of the current state of knowledge
+    6. IMPORTANT: How humans can use the ingredient (topical, oral, etc.)
 
-            Le style doit être :
-            - Formel et encyclopédique, sans formulations commerciales ou subjectives
-            - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
-            - Structuré avec des transitions logiques entre les différents aspects abordés
-            - Accessible, en expliquant systématiquement les termes techniques
+    The style should be:
+    - Formal and encyclopedic, without commercial or subjective formulations
+    - Precise, with phrases like "studies suggest that..." or "research indicates..." followed by specific data
+    - Structured with logical transitions between different aspects covered
+    - Accessible, systematically explaining technical terms
 
-            IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
-            IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
-            
-            IMPORTANT : Le paragraphe doit être en {output_language} et compter 300 mots.
-            Extraits sur {ingredient} :
-            {context}
-            """
+    IMPORTANT: Base yourself ONLY on information present in the provided extracts. Do not invent data or conclusions not mentioned in the sources. If information is limited or preliminary, faithfully reflect this reality.
+    IMPORTANT: Only provide information about the ingredient {ingredient} and do not make comparisons with other ingredients or products.
+
+    IMPORTANT: The paragraph must be in English and be 300 words long.
+
+    Extracts about {ingredient}:
+    {context}
+    """
+            else:
+                # Original French prompt for OpenAI
+                prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+
+    Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en français, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+
+    OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+
+    Ton texte doit :
+
+    1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+
+    2. Développer les propriétés scientifiquement établies en précisant systématiquement :
+    - La nature des études (in vitro, animales, essais cliniques humains)
+    - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
+    - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+
+    3. Présenter de façon équilibrée :
+    - Les bénéfices démontrés avec leur niveau de preuve scientifique
+    - Les limitations, effets indésirables ou précautions d'emploi
+    - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+
+    4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+
+    5. Conclure avec une synthèse objective de l'état actuel des connaissances 
+    6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+
+    Le style doit être :
+    - Formel et encyclopédique, sans formulations commerciales ou subjectives
+    - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
+    - Structuré avec des transitions logiques entre les différents aspects abordés
+    - Accessible, en expliquant systématiquement les termes techniques
+
+    IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
+    IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
+
+    IMPORTANT : Le paragraphe doit être en français et compter 300 mots.
+
+    Extraits sur {ingredient} :
+    {context}
+    """
         
         prompt_size = len(prompt)
         logger.info(f"Taille du prompt: {prompt_size} caractères, {len(prompt.split())} mots")
+        logger.info(f"Langue demandée: {output_language}, LLM type: {self.llm_type}")
         
         return prompt
     
@@ -285,6 +350,7 @@ class IngredientSummarizer:
         """Génère un résumé progressivement par lots de documents."""
         # Détermine la langue de sortie
         output_language = "Français" if language == "fr" else "English"
+        is_english = language == "en"
         
         # Résumer par lots
         batch_summaries = []
@@ -292,91 +358,176 @@ class IngredientSummarizer:
             batch = chunks[i:i+batch_size]
             logger.info(f"Traitement du lot {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}")
             
-            prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+            if is_english:
+                prompt = f"""You are an expert in scientific popularization specialized in natural ingredients.
 
-            Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en {output_language}, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+    I will provide you with scientific article extracts about the ingredient "{ingredient}". Write a detailed paragraph in English, in an encyclopedic style similar to Wikipedia that synthesizes current scientific knowledge about this ingredient.
 
-            OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+    MAIN OBJECTIVE: Present a comprehensive, balanced and factual overview that highlights significant scientific discoveries while remaining accessible to non-specialists.
 
-            Ton texte doit :
+    Your text should:
 
-            1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+    1. Begin with a clear introduction defining the ingredient, its origin, main composition and historical and contemporary usage context
 
-            2. Développer les propriétés scientifiquement établies en précisant systématiquement :
-            - La nature des études (in vitro, animales, essais cliniques humains)
-            - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
-            - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+    2. Develop scientifically established properties by systematically specifying:
+    - The nature of studies (in vitro, animal studies, human clinical trials)
+    - Methodological quality of research (sample size, duration, etc.)
+    - Identified mechanisms of action when mentioned
 
-            3. Présenter de façon équilibrée :
-            - Les bénéfices démontrés avec leur niveau de preuve scientifique
-            - Les limitations, effets indésirables ou précautions d'emploi
-            - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+    3. Present in a balanced way:
+    - Demonstrated benefits with their level of scientific evidence
+    - Limitations, adverse effects or precautions for use
+    - Populations that may particularly benefit or should avoid this ingredient
 
-            4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+    4. Contextualize results in the global scientific landscape (consensus, controversies or ongoing research)
 
-            5. Conclure avec une synthèse objective de l'état actuel des connaissances 
-            6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+    5. Conclude with an objective synthesis of the current state of knowledge
+    6. IMPORTANT: How humans can use the ingredient (topical, oral, etc.)
 
-            Le style doit être :
-            - Formel et encyclopédique, sans formulations commerciales ou subjectives
-            - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
-            - Structuré avec des transitions logiques entre les différents aspects abordés
-            - Accessible, en expliquant systématiquement les termes techniques
+    The style should be:
+    - Formal and encyclopedic, without commercial or subjective formulations
+    - Precise, with phrases like "studies suggest that..." or "research indicates..." followed by specific data
+    - Structured with logical transitions between different aspects covered
+    - Accessible, systematically explaining technical terms
 
-            IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
-            IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
-            
-            IMPORTANT : Le paragraphe doit être en {output_language} et compter 300 mots.
-            Extraits sur {ingredient} :
-            """
-    
+    IMPORTANT: Base yourself ONLY on information present in the provided extracts. Do not invent data or conclusions not mentioned in the sources. If information is limited or preliminary, faithfully reflect this reality.
+    IMPORTANT: Only provide information about the ingredient {ingredient} and do not make comparisons with other ingredients or products.
+
+    IMPORTANT: The paragraph must be in English and be 300 words long.
+
+    Extracts about {ingredient}:
+    """
+            else:
+                prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+
+    Je vais te fournir des extraits d'articles scientifiques sur l'ingrédient "{ingredient}". Rédige un paragraphe détaillé, en français, dans un style encyclopédique similaire à Wikipedia qui synthétise les connaissances scientifiques actuelles sur cet ingrédient.
+
+    OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+
+    Ton texte doit :
+
+    1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+
+    2. Développer les propriétés scientifiquement établies en précisant systématiquement :
+    - La nature des études (in vitro, animales, essais cliniques humains)
+    - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
+    - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+
+    3. Présenter de façon équilibrée :
+    - Les bénéfices démontrés avec leur niveau de preuve scientifique
+    - Les limitations, effets indésirables ou précautions d'emploi
+    - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+
+    4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+
+    5. Conclure avec une synthèse objective de l'état actuel des connaissances 
+    6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+
+    Le style doit être :
+    - Formel et encyclopédique, sans formulations commerciales ou subjectives
+    - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
+    - Structuré avec des transitions logiques entre les différents aspects abordés
+    - Accessible, en expliquant systématiquement les termes techniques
+
+    IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les extraits fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources. Si les informations sont limitées ou préliminaires, reflète fidèlement cette réalité.
+    IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
+
+    IMPORTANT : Le paragraphe doit être en français et compter 300 mots.
+
+    Extraits sur {ingredient} :
+    """
+
             prompt += "\n---\n".join([doc.page_content for doc in batch])
             
             batch_summary = self.llm.invoke(prompt).content
             batch_summaries.append(batch_summary)
         
-        # Résumer les résumés
+        # Résumer les résumés - Final synthesis prompt also in correct language
         summaries_joined = "\n\n".join([f"Résumé {i+1}:\n{summary}" for i, summary in enumerate(batch_summaries)])
-        final_prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+        
+        if is_english:
+            final_prompt = f"""You are an expert in scientific popularization specialized in natural ingredients.
 
-        Voici plusieurs résumés partiels sur l'ingrédient "{ingredient}". Synthétise-les en un paragraphe détaillé (300 mots), en {output_language}, dans un style encyclopédique similaire à Wikipedia.
+    Here are several partial summaries about the ingredient "{ingredient}". Synthesize them into a detailed paragraph (300 words) in English, in an encyclopedic style similar to Wikipedia.
 
-        OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+    MAIN OBJECTIVE: Present a comprehensive, balanced and factual overview that highlights significant scientific discoveries while remaining accessible to non-specialists.
 
-        Ton texte doit :
+    Your text should:
 
-        1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+    1. Begin with a clear introduction defining the ingredient, its origin, main composition and historical and contemporary usage context
 
-        2. Développer les propriétés scientifiquement établies en précisant systématiquement :
-        - La nature des études (in vitro, animales, essais cliniques humains)
-        - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
-        - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+    2. Develop scientifically established properties by systematically specifying:
+    - The nature of studies (in vitro, animal studies, human clinical trials)
+    - Methodological quality of research (sample size, duration, etc.)
+    - Identified mechanisms of action when mentioned
 
-        3. Présenter de façon équilibrée :
-        - Les bénéfices démontrés avec leur niveau de preuve scientifique
-        - Les limitations, effets indésirables ou précautions d'emploi
-        - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+    3. Present in a balanced way:
+    - Demonstrated benefits with their level of scientific evidence
+    - Limitations, adverse effects or precautions for use
+    - Populations that may particularly benefit or should avoid this ingredient
 
-        4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+    4. Contextualize results in the global scientific landscape (consensus, controversies or ongoing research)
 
-        5. Conclure avec une synthèse objective de l'état actuel des connaissances 
-        6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+    5. Conclude with an objective synthesis of the current state of knowledge
+    6. IMPORTANT: How humans can use the ingredient (topical, oral, etc.)
 
-        Le style doit être :
-        - Formel et encyclopédique, sans formulations commerciales ou subjectives
-        - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
-        - Structuré avec des transitions logiques entre les différents aspects abordés
-        - Accessible, en expliquant systématiquement les termes techniques
+    The style should be:
+    - Formal and encyclopedic, without commercial or subjective formulations
+    - Precise, with phrases like "studies suggest that..." or "research indicates..." followed by specific data
+    - Structured with logical transitions between different aspects covered
+    - Accessible, systematically explaining technical terms
 
-        IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les résumés fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources.
-        IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
+    IMPORTANT: Base yourself ONLY on information present in the provided summaries. Do not invent data or conclusions not mentioned in the sources.
+    IMPORTANT: Only provide information about the ingredient {ingredient} and do not make comparisons with other ingredients or products.
 
-        IMPORTANT : Le paragraphe doit être en {output_language} et compter 300 mots.
+    IMPORTANT: The paragraph must be in English and be 300 words long.
 
-        Résumés à synthétiser :
-        {summaries_joined}
-        """
+    Summaries to synthesize:
+    {summaries_joined}
+    """
+        else:
+            final_prompt = f"""Tu es un expert en vulgarisation scientifique spécialisé dans les ingrédients naturels.
+
+    Voici plusieurs résumés partiels sur l'ingrédient "{ingredient}". Synthétise-les en un paragraphe détaillé (300 mots), en français, dans un style encyclopédique similaire à Wikipedia.
+
+    OBJECTIF PRINCIPAL : Présenter une vue d'ensemble complète, équilibrée et factuelle qui valorise les découvertes scientifiques significatives tout en restant accessible aux non-spécialistes.
+
+    Ton texte doit :
+
+    1. Commencer par une introduction claire définissant l'ingrédient, son origine, sa composition principale et son contexte d'utilisation historique et contemporain
+
+    2. Développer les propriétés scientifiquement établies en précisant systématiquement :
+    - La nature des études (in vitro, animales, essais cliniques humains)
+    - La qualité méthodologique des recherches (taille d'échantillon, durée, etc.)
+    - Les mécanismes d'action identifiés lorsqu'ils sont mentionnés
+
+    3. Présenter de façon équilibrée :
+    - Les bénéfices démontrés avec leur niveau de preuve scientifique
+    - Les limitations, effets indésirables ou précautions d'emploi
+    - Les populations pouvant particulièrement bénéficier ou devant éviter cet ingrédient
+
+    4. Contextualiser les résultats dans le paysage scientifique global (consensus, controverses ou recherches en cours)
+
+    5. Conclure avec une synthèse objective de l'état actuel des connaissances 
+    6. IMPORTANT : La façon dont l'humain peut utiliser l'ingrédient (voie cutanée, orale, etc.)
+
+    Le style doit être :
+    - Formel et encyclopédique, sans formulations commerciales ou subjectives
+    - Précis, avec des tournures comme "des études suggèrent que..." ou "les recherches indiquent..." suivies de données spécifiques
+    - Structuré avec des transitions logiques entre les différents aspects abordés
+    - Accessible, en expliquant systématiquement les termes techniques
+
+    IMPORTANT : Base-toi UNIQUEMENT sur les informations présentes dans les résumés fournis. N'invente pas de données ou de conclusions non mentionnées dans les sources.
+    IMPORTANT : Ne donne des informations que sur l'ingrédient {ingredient} et ne fais pas de comparaisons avec d'autres ingrédients ou produits.
+
+    IMPORTANT : Le paragraphe doit être en français et compter 300 mots.
+
+    Résumés à synthétiser :
+    {summaries_joined}
+    """
+        
         return self.llm.invoke(final_prompt).content
+
     
     def save_summary(self, ingredient: str, summary: str, summary_id: str = None) -> Dict[str, Any]:
         """Sauvegarde le résumé généré dans un fichier."""

@@ -57,7 +57,7 @@ def read_root():
     return {"message": "Welcome to bioQuery API!"}
 
 @app.get("/search/semantic_scholars/")
-async def search_semantic_scholars(ingredient: str, use_cache: bool = True, use_openai_for_query: bool = None):
+async def search_semantic_scholars(ingredient: str, use_cache: bool = False, use_openai_for_query: bool = None):
     """ 
     Recherche des articles sur Semantic Scholars avec support de cache.
     Utilise OpenAI pour générer la requête si la variable d'environnement est définie.
@@ -279,7 +279,7 @@ async def search_complete(
         raise HTTPException(status_code=500, detail=error_message)
 
 @app.get("/search/both/")
-async def search_both(ingredient: str, use_cache: bool = True, use_openai_for_query: bool = None):
+async def search_both(ingredient: str, use_cache: bool = False, use_openai_for_query: bool = None):
     """ Recherche des articles sur Semantic Scholars et d'autres sources. """
     semantic_results = search_and_download_from_semantic_scholars(
         ingredient, 
