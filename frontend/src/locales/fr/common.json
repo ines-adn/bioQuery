@@ -17,9 +17,9 @@
     "noArticlesFound": "Aucun article scientifique trouvé pour cet ingrédient.",
     "status": {
       "starting": "Recherche en cours...",
-      "searching": "Recherche d'articles scientifiques...",
+      "searching": "Recherche d'articles scientifiques... (cela peut prendre 2 à 3 minutes)",
       "analyzing": "Analyse des documents...",
-      "generating": "Génération du résumé...",
+      "generating": "Génération du résumé... (cela peut prendre 1 à 2 minutes)",
       "completed": "Recherche terminée !"
     }
   },

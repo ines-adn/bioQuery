@@ -113,7 +113,7 @@ async def process_pdfs(ingredient: str, overwrite: bool = False):
 async def search_complete(
     ingredient: str, 
     use_openai: bool = False, 
-    use_cache: bool = True, 
+    use_cache: bool = False, 
     use_openai_for_query: bool = None,
     max_chunks: int = 10,            # Réduire la valeur par défaut
     max_chunks_ollama: int = 3,      # Nouveau paramètre spécifique à Ollama

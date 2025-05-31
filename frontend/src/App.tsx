@@ -28,6 +28,7 @@ interface SearchResponse {
 
 function TypingText({ text, speed = 50 }: { text: string; speed?: number }) {
   const [displayedText, setDisplayedText] = useState("");
+  
 
   useEffect(() => {
     let index = 0;
@@ -65,6 +66,7 @@ function BioQueryLogo({ size = 32 }: { size?: number }) {
 function App() {
   const { t, i18n } = useTranslation('common');
   const [ingredient, setIngredient] = useState("");
+  const [searchStatus, setSearchStatus] = useState<string>("");
   const [results, setResults] = useState<Result[] | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -111,13 +113,13 @@ function App() {
   
   const params = new URLSearchParams();
   params.append("ingredient", ingredient);
-  params.append("language", searchLang); // Ajouter le paramètre de langue
+  params.append("language", searchLang);
   
-  // Utiliser la nouvelle route API qui fait le processus complet
   const url = `/search/complete/?${params.toString()}`;
 
   setError("");
   setLoading(true);
+  setSearchStatus(t('search.status.starting')); // "Recherche en cours..."
   
   // Ne pas effacer le résumé actuel immédiatement lors du changement de langue
   if (!lang) {
@@ -127,18 +129,29 @@ function App() {
   
   try {
     const fullURL = "http://localhost:8000" + url;
-    console.log("Appel API:", fullURL); // Log pour debug
+    console.log("Appel API:", fullURL);
+    
+    // Simulate intermediate status updates (you can remove these if your backend sends real-time updates)
+    setTimeout(() => setSearchStatus(t('search.status.searching')), 1000); // "Recherche d'articles scientifiques..."
+    setTimeout(() => setSearchStatus(t('search.status.analyzing')), 3000); // "Analyse des documents..."
+    setTimeout(() => setSearchStatus(t('search.status.generating')), 5000); // "Génération du résumé..."
     
     const response = await fetch(fullURL);
     
     if (response.ok) {
       const data: SearchResponse = await response.json();
-      console.log("Réponse API:", data); // Log pour debug
+      console.log("Réponse API:", data);
+      
+      // Check if no articles were found
+      if (!data.semantic_results || data.semantic_results.length === 0) {
+        setError(t('search.noArticlesFound')); // "Aucun article scientifique trouvé pour cet ingrédient."
+        setSearchStatus("");
+        return;
+      }
       
       // Extraire le résumé et les résultats
       if (data.summary) {
         setSummary(data.summary);
-        // Mettre à jour la langue sélectionnée avec celle retournée par l'API
         if (data.summary.language) {
           setSummaryLanguage(data.summary.language);
         }
@@ -148,6 +161,11 @@ function App() {
       if (!lang && data.semantic_results) {
         setResults(data.semantic_results);
       }
+      
+      setSearchStatus(t('search.status.completed')); // "Recherche terminée !"
+      
+      // Clear status message after 2 seconds
+      setTimeout(() => setSearchStatus(""), 2000);
       
       // Scroll to results after they load
       if ((lang || (data.semantic_results && data.semantic_results.length > 0) || data.summary)) {
@@ -159,10 +177,12 @@ function App() {
       }
     } else {
       setError("Erreur : rafraîchissez la page et réessayez");
+      setSearchStatus("");
     }
   } catch (error) {
     console.error("Erreur lors de l'appel API:", error);
     setError("Erreur : rafraîchissez la page et réessayez");
+    setSearchStatus("");
   } finally {
     setLoading(false);
   }
@@ -307,6 +327,14 @@ function App() {
                 {error && (
                   <div className="error-message">
                     {error}
+                  </div>
+                )}
+                {searchStatus && (
+                  <div className="status-message">
+                    <div className="status-indicator">
+                      <div className="status-spinner"></div>
+                    </div>
+                    {searchStatus}
                   </div>
                 )}
               </div>

@@ -17,9 +17,9 @@
     "noArticlesFound": "No scientific articles found for this ingredient.",
     "status": {
       "starting": "Starting search...",
-      "searching": "Searching for scientific articles...",
+      "searching": "Searching for scientific articles... (this might take 2 to 3 minutes)",
       "analyzing": "Analyzing documents...",
-      "generating": "Generating summary...",
+      "generating": "Generating summary... (this might take 1 to 2 minutes)",
       "completed": "Search completed!"
     }
   },

@@ -176,6 +176,7 @@ class IngredientSummarizer:
             3. Précautions et limitations
             4. Utilisation (voie cutanée, orale, etc.)
             
+            Ne place pas de phrases introductives ou de conclusions. Donne simplement le résumé.
             Contexte:
             {context}
             """
