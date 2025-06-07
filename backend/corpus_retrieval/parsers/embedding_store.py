@@ -1,41 +1,27 @@
-import json
 import logging
 from typing import List, Dict, Any
 import time
 
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
-# Continue using the deprecated version as requested
 from langchain_postgres import PGVector
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from article_chunker import process_downloaded_articles
+from utils import load_config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
-def load_config(config_file="config.json"):
-    """Charge la configuration depuis un fichier JSON."""
-    try:
-        with open(config_file, "r") as file:
-            config = json.load(file)
-            return config
-    except FileNotFoundError:
-        logger.error(f"Le fichier {config_file} n'a pas été trouvé.")
-        return {}
-    except json.JSONDecodeError:
-        logger.error(f"Erreur lors de la lecture du fichier {config_file}.")
-        return {}
-
 class VectorDatabaseSetup:
-    """Classe pour configurer la base de données et l'extension pgvector."""
+    """Class to configure the database and the pgvector extension."""
     
     def __init__(self, config_file="config.json"):
         self.config = load_config(config_file)
         self.db_config = self.config.get("postgres", {})
         
     def get_connection_params(self):
-        """Récupère les paramètres de connexion à la base de données."""
+        """Retrieve the database connection parameters."""
         return {
             "host": self.db_config.get("host", "localhost"),
             "port": self.db_config.get("port", 5432),
@@ -44,11 +30,11 @@ class VectorDatabaseSetup:
         }
     
     def get_connection_string(self, include_dbname=True):
-        """Génère la chaîne de connexion PostgreSQL."""
+        """Generate the PostgreSQL connection string."""
         params = self.get_connection_params()
         dbname = self.db_config.get("database", "vectordb")
         auth = f"{params['user']}"
-        if params['password']:  # Only include password if it exists
+        if params['password']:
             auth = f"{params['user']}:{params['password']}"
         
         if include_dbname:
@@ -57,21 +43,20 @@ class VectorDatabaseSetup:
             return f"postgresql://{auth}@{params['host']}:{params['port']}"
     
     def setup_database(self):
-        """Vérifie la connectivité à la base de données et prépare le schéma nécessaire pour PGVector."""
+        """Checks database connectivity and prepares the necessary schema for PGVector."""
         try:
-            # Se connecter à la base de données existante
+            # Connects to the existing PostgreSQL database
             conn = psycopg2.connect(self.get_connection_string())
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             cursor = conn.cursor()
             
-            # Vérifier que la connexion fonctionne
+            # Checks that the connection is successful
             cursor.execute("SELECT 1")
             
-            # Vérifier que l'extension pgvector est installée
+            # Checks if the pgvector extension is installed
             cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
             
-            # Créer une table de collections avec une colonne uuid explicite
-            # C'est la clé de notre correction - s'assurer que la table a bien une colonne uuid
+            # Create a table for collections with an explicit uuid column
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS langchain_pg_collection (
                 uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,52 +69,52 @@ class VectorDatabaseSetup:
             cursor.close()
             conn.close()
             
-            logger.info("Connexion à la base de données réussie et schéma préparé.")
+            logger.info("Database connection successful and schema prepared.")
             return True
             
         except Exception as e:
-            logger.error(f"Erreur lors de la configuration de la base de données: {e}")
+            logger.error(f"Error during database setup: {e}")
             return False
 
 class EmbeddingManager:
-    """Classe pour gérer les embeddings et leur stockage."""
+    """Class to manage embeddings and their storage."""
     
     def __init__(self, config_file="config.json"):
         self.config = load_config(config_file)
-        self.model_name = self.config.get("embedding_model", "sentence-transformers/all-MiniLM-L6-v2")
+        self.model_name = self.config.get("embedding_model", "sentence-transformers/all-MiniLM-L6-v2") # Default model
         self.db_setup = VectorDatabaseSetup(config_file)
         self.connection_string = self.db_setup.get_connection_string()
         self._embedding_model = None
     
     @property
     def embedding_model(self):
-        """Charge le modèle d'embedding de manière paresseuse."""
+        """Loads the embedding model."""
         if self._embedding_model is None:
             try:
                 self._embedding_model = HuggingFaceEmbeddings(model_name=self.model_name)
-                logger.info(f"Modèle d'embedding {self.model_name} chargé avec succès.")
+                logger.info(f"Embedding model {self.model_name} loaded successfully.")
             except Exception as e:
-                logger.error(f"Erreur lors du chargement du modèle d'embedding: {e}")
+                logger.error(f"Error loading embedding model: {e}")
                 raise
         return self._embedding_model
     
     def get_collection_name(self, ingredient):
-        """Génère un nom de collection standardisé pour un ingrédient."""
-        # Nettoyer et normaliser le nom pour éviter des problèmes de compatibilité
+        """Generate a standardized collection name for an ingredient."""
+        # Clean and normalize the name to avoid compatibility issues
         collection_name = ingredient.lower().replace(" ", "_").replace("-", "_")
         return f"collection_{collection_name}"
     
     def store_chunks(self, chunks: List[Document], ingredient: str, overwrite: bool = False) -> Dict[str, Any]:
         """
-        Transforme les chunks en embeddings et les stocke dans la base de données vectorielle.
-        
+        Transforms the chunks into embeddings and stores them in the vector database.
+
         Args:
-            chunks: Liste des chunks à stocker
-            ingredient: Nom de l'ingrédient pour nommer la collection
-            overwrite: Si True, supprime la collection existante avant d'ajouter les nouveaux documents
-            
+            chunks: List of chunks to store
+            ingredient: Name of the ingredient to name the collection
+            overwrite: If True, deletes the existing collection before adding new documents
+
         Returns:
-            Dictionnaire contenant les résultats de l'opération
+            Dictionary containing the results of the operation
         """
         if not chunks:
             return {
@@ -139,11 +124,11 @@ class EmbeddingManager:
                 "stored_chunks": 0
             }
         
-        # Vérifier que la base de données est correctement configurée
+        # Ensure the database is properly configured
         if not self.db_setup.setup_database():
             return {
                 "status": "error",
-                "message": "Échec de la configuration de la base de données.",
+                "message": "Database setup failed.",
                 "ingredient": ingredient,
                 "stored_chunks": 0
             }
@@ -154,7 +139,6 @@ class EmbeddingManager:
         try:
             conn_string = self.db_setup.get_connection_string()
             
-            # Initialiser le vectorstore avec la nouvelle implémentation
             vectorstore = PGVector.from_documents(
                 documents=chunks,  
                 embedding=self.embedding_model,
@@ -164,17 +148,17 @@ class EmbeddingManager:
                 pre_delete_collection=overwrite
             )
             
-            # Ajouter les documents à la base vectorielle
+            # Add documents to the vectorstore
             vectorstore.add_documents(chunks)
             
             end_time = time.time()
             processing_time = round(end_time - start_time, 2)
             
-            logger.info(f"{len(chunks)} chunks stockés dans la collection {collection_name} en {processing_time} secondes.")
+            logger.info(f"{len(chunks)} chunks stored in collection {collection_name} in {processing_time} seconds.")
             
             return {
                 "status": "success",
-                "message": f"{len(chunks)} chunks transformés en embeddings et stockés avec succès.",
+                "message": f"{len(chunks)} chunks transformed into embeddings and successfully stored.",
                 "ingredient": ingredient,
                 "collection_name": collection_name,
                 "stored_chunks": len(chunks),
@@ -182,21 +166,21 @@ class EmbeddingManager:
             }
             
         except Exception as e:
-            logger.error(f"Erreur lors du stockage des embeddings: {e}")
+            logger.error(f"Error while storing embeddings: {e}")
             return {
                 "status": "error",
-                "message": f"Erreur lors du stockage des embeddings: {str(e)}",
+                "message": f"Error while storing embeddings: {str(e)}",
                 "ingredient": ingredient,
                 "stored_chunks": 0
             }
     
     def list_collections(self) -> List[str]:
-        """Liste toutes les collections disponibles dans la base de données."""
+        """Lists all available collections in the database."""
         try:
             conn = psycopg2.connect(self.connection_string)
             cursor = conn.cursor()
             
-            # Vérifier d'abord si la table existe
+            # Check if the table langchain_pg_collection exists
             cursor.execute("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -220,12 +204,12 @@ class EmbeddingManager:
             return []
     
     def get_collection_info(self, collection_name: str) -> Dict[str, Any]:
-        """Récupère des informations sur une collection spécifique."""
+        """Retrieve information about a specific collection."""
         try:
             conn = psycopg2.connect(self.connection_string)
             cursor = conn.cursor()
             
-            # Vérifier si la table collection existe
+            # Check if the table langchain_pg_collection exists
             cursor.execute("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -242,28 +226,28 @@ class EmbeddingManager:
                     "collection_name": collection_name
                 }
             
-            # Vérifier si la collection existe
+            # Check if the collection exists
             cursor.execute("SELECT 1 FROM langchain_pg_collection WHERE name = %s", (collection_name,))
             exists = cursor.fetchone()
             
             if not exists:
                 return {
                     "status": "error",
-                    "message": f"La collection {collection_name} n'existe pas.",
+                    "message": f"The collection {collection_name} does not exist.",
                     "collection_name": collection_name
                 }
             
-            # Récupérer les métadonnées de la collection
+            # Gather metadata for the collection
             cursor.execute("SELECT cmetadata FROM langchain_pg_collection WHERE name = %s", (collection_name,))
             metadata_row = cursor.fetchone()
             metadata = metadata_row[0] if metadata_row else {}
             
-            # Le nom de la table d'embedding peut être différent selon la version de langchain_postgres
-            # Essayer de déterminer dynamiquement le nom de la table d'embedding
+            # The embedding table name may differ depending on the version of langchain_postgres
+            # Try to dynamically determine the embedding table name
             embedding_table_name = f"langchain_pg_embedding_{collection_name}"
             alt_embedding_table_name = f"langchain_embedding_{collection_name}"
             
-            # Vérifier quelle table existe
+            # Check which embedding table exists
             cursor.execute("""
                 SELECT table_name FROM information_schema.tables 
                 WHERE table_name IN (%s, %s)
@@ -277,12 +261,12 @@ class EmbeddingManager:
                     "collection_name": collection_name,
                     "document_count": 0,
                     "metadata": metadata,
-                    "note": "La collection existe mais la table d'embedding n'a pas été trouvée."
+                    "note": "The collection exists but the embedding table was not found."
                 }
             
             actual_table_name = table_result[0]
             
-            # Récupérer le nombre de documents dans la collection
+            # Count the number of documents in the collection
             cursor.execute(f"SELECT COUNT(*) FROM {actual_table_name}")
             count = cursor.fetchone()[0]
             
@@ -305,96 +289,59 @@ class EmbeddingManager:
             }
 
 
-# Fonction d'utilité pour stocker directement les chunks d'un ingrédient
+# Utility function to directly store article chunks for an ingredient
 def store_article_chunks(chunks: List[Document], ingredient: str, overwrite: bool = False, config_file: str = "config.json") -> Dict[str, Any]:
     """
-    Fonction utilitaire pour stocker directement les chunks d'articles dans la base vectorielle.
+    Utility function to directly store article chunks in the vector database.
     
     Args:
-        chunks: Liste des chunks à stocker
-        ingredient: Nom de l'ingrédient
-        overwrite: Si True, écrase la collection existante
-        config_file: Chemin vers le fichier de configuration
+        chunks: List of chunks to store
+        ingredient: Name of the ingredient
+        overwrite: If True, overwrite the existing collection
+        config_file: Path to the configuration file
         
     Returns:
-        Résultats de l'opération de stockage
+        Results of the storage operation
     """
     manager = EmbeddingManager(config_file)
     return manager.store_chunks(chunks, ingredient, overwrite)
 
 
-# Exemple d'intégration avec article_chunker.py
 def process_and_store_ingredient(ingredient: str, overwrite: bool = False) -> Dict[str, Any]:
     """
-    Traite les articles d'un ingrédient et stocke les chunks résultants.
-    
+    Processes the articles for a given ingredient and stores the resulting chunks.
+
     Args:
-        ingredient: Nom de l'ingrédient
-        overwrite: Si True, écrase la collection existante
-        
+        ingredient: Name of the ingredient
+        overwrite: If True, overwrites the existing collection
+
     Returns:
-        Résultats combinés des opérations de traitement et de stockage
+        Combined results of the processing and storage operations
     """
-    # Importer la fonction de traitement des articles
-    from article_chunker import process_downloaded_articles
-    
-    # Traiter les articles
+
     processing_results = process_downloaded_articles(ingredient)
     
-    # Vérifier si le traitement a réussi
+    # Check if the processing was successful
     if processing_results.get("status") != "success":
         return {
             "status": "error",
-            "message": f"Erreur lors du traitement des articles: {processing_results.get('message', 'Erreur inconnue')}",
+            "message": f"Error while processing articles: {processing_results.get('message', 'Unknown error')}",
             "ingredient": ingredient,
             "processing_results": processing_results,
             "embedding_results": None
         }
     
-    # Récupérer les chunks
+    # Get the chunks from the processing results
     chunks = processing_results.get("chunks", [])
     
-    # Stocker les chunks
+    # Stock the chunks in the vector database
     embedding_results = store_article_chunks(chunks, ingredient, overwrite)
     
-    # Combiner les résultats
+    # Combine the results
     return {
         "status": embedding_results.get("status"),
-        "message": f"Traitement et stockage terminés. {embedding_results.get('stored_chunks')} chunks stockés.",
+        "message": f"Processing and storage completed. {embedding_results.get('stored_chunks')} chunks stored.",
         "ingredient": ingredient,
         "processing_results": processing_results,
         "embedding_results": embedding_results
     }
-
-
-if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) > 1:
-        # Obtenir l'ingrédient depuis les arguments de ligne de commande
-        ingredient = sys.argv[1]
-        
-        # Vérifier s'il faut écraser la collection existante
-        overwrite = "--overwrite" in sys.argv
-        
-        print(f"Traitement et stockage des articles pour l'ingrédient: {ingredient}")
-        print(f"Mode écrasement: {'activé' if overwrite else 'désactivé'}")
-        
-        results = process_and_store_ingredient(ingredient, overwrite)
-        
-        # Afficher les résultats
-        print(f"\nStatut: {results['status']}")
-        print(f"Message: {results['message']}")
-        
-        if results.get("processing_results"):
-            print("\nInformations de traitement:")
-            print(f"- Fichiers traités: {results['processing_results'].get('processed_files', 0)}")
-            print(f"- Total des chunks: {results['processing_results'].get('total_chunks', 0)}")
-        
-        if results.get("embedding_results") and results["embedding_results"].get("status") == "success":
-            print("\nInformations de stockage:")
-            print(f"- Collection: {results['embedding_results'].get('collection_name', '')}")
-            print(f"- Chunks stockés: {results['embedding_results'].get('stored_chunks', 0)}")
-            print(f"- Temps de traitement: {results['embedding_results'].get('processing_time', 0)} secondes")
-    else:
-        print("Usage: python embedding_store.py <ingredient> [--overwrite]")

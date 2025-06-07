@@ -1,5 +1,4 @@
 import os
-import json
 import logging
 from typing import List, Dict, Any
 import uuid
@@ -7,26 +6,10 @@ import uuid
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from utils import load_config 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-def load_config(config_file="config.json"):
-    """Loads config from a JSON file."""
-
-    # File loading
-    try:
-        with open(config_file, "r") as file:
-            config = json.load(file)
-            return config
-    
-    # Error handling
-    except FileNotFoundError:
-        logger.error(f"The file {config_file} was not found.")
-        return {}
-    except json.JSONDecodeError:
-        logger.error(f"Error reading the file {config_file}.")
-        return {}
 
 class ArticleProcessor:
     """Class to process downloaded PDF articles for a specific ingredient."""
@@ -159,31 +142,3 @@ def process_downloaded_articles(ingredient, chunk_size=1000, chunk_overlap=200):
     )
     
     return processor.process_ingredient_articles()
-
-
-if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) > 1:
-        # Obtain the ingredient from command line arguments
-        ingredient = sys.argv[1]
-        
-        print(f"Processing articles for ingredient: {ingredient}")
-        results = process_downloaded_articles(ingredient)
-        
-        # Afficher les résultats
-        print(f"Status: {results['status']}")
-        print(f"Message: {results['message']}")
-        print(f"Processed files: {results['processed_files']}")
-        print(f"Total chunks: {results['total_chunks']}")
-        
-        if results['errors']:
-            print("\nErreurs:")
-            for error in results['errors']:
-                print(f"- {error}")
-                
-        if 'chunks' in results and results['chunks']:
-            print("\nFirst chunk (excerpt):")
-            print(results['chunks'][0].page_content[:200] + "...")
-    else:
-        print("Usage: python process_articles.py <ingredient>")
