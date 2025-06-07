@@ -8,25 +8,28 @@ from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def load_config(config_file="config.json"):
-    """Charge la configuration depuis un fichier JSON."""
+    """Loads config from a JSON file."""
+
+    # File loading
     try:
         with open(config_file, "r") as file:
             config = json.load(file)
             return config
+    
+    # Error handling
     except FileNotFoundError:
-        logger.error(f"Le fichier {config_file} n'a pas été trouvé.")
+        logger.error(f"The file {config_file} was not found.")
         return {}
     except json.JSONDecodeError:
-        logger.error(f"Erreur lors de la lecture du fichier {config_file}.")
+        logger.error(f"Error reading the file {config_file}.")
         return {}
 
 class ArticleProcessor:
-    """Classe pour traiter les articles PDF téléchargés pour un ingrédient spécifique."""
+    """Class to process downloaded PDF articles for a specific ingredient."""
     
     def __init__(
         self,
@@ -41,22 +44,31 @@ class ArticleProcessor:
         self.config = load_config(config_file)
         self.base_dir = self.config.get("base_dir", "")
         
-        # Initialiser le chemin du dossier si un ingrédient est fourni
+        # Initialize the folder path based on the ingredient
         if self.ingredient:
             self.folder_path = os.path.join(self.base_dir, "backend", "data", "articles", self.ingredient)
     
     def process_article(self, file_path) -> List[Document]:
-        """Traite un seul article PDF."""
+        """
+        Process a single PDF article file and return a list of chunked Document objects.
+
+        Args:
+            file_path (str): Path to the PDF file.
+
+        Returns:
+            List[Document]: List of chunked Document objects with metadata.
+
+        """
         if not os.path.exists(file_path) or not file_path.endswith(".pdf"):
             logger.error(f"Fichier invalide: {file_path}")
             return []
         
         try:
-            # Charger le PDF
+            # Load the PDF file
             loader = PyPDFLoader(file_path)
             documents = loader.load()
             
-            # Ajouter des métadonnées
+            # Add metadata to each document
             file_name = os.path.basename(file_path)
             
             for doc in documents:
@@ -65,7 +77,7 @@ class ArticleProcessor:
                 doc.metadata["ingredient"] = self.ingredient
                 doc.metadata["id"] = str(uuid.uuid4())
             
-            # Chunking
+            # Chunk the documents with the specified size and overlap
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
@@ -73,21 +85,21 @@ class ArticleProcessor:
             )
             
             chunks = text_splitter.split_documents(documents)
-            logger.info(f"Article {file_name} traité avec succès: {len(chunks)} chunks créés.")
+            logger.info(f"Article {file_name} processed successfully: {len(chunks)} chunks created.")
             
             return chunks
             
         except Exception as e:
-            logger.error(f"Erreur lors du traitement de l'article {file_path}: {e}")
+            logger.error(f"Error processing article {file_path}: {e}")
             return []
     
     def process_ingredient_articles(self) -> Dict[str, Any]:
-        """Traite tous les articles PDF pour l'ingrédient spécifié."""
+        """Processes all PDF articles for the specified ingredient."""
         if not os.path.exists(self.folder_path):
-            logger.error(f"Le dossier {self.folder_path} n'existe pas.")
+            logger.error(f"The folder {self.folder_path} does not exist.")
             return {
                 "status": "error",
-                "message": f"Le dossier des articles pour l'ingrédient {self.ingredient} n'existe pas.",
+                "message": f"The articles folder for ingredient {self.ingredient} does not exist.",
                 "ingredient": self.ingredient
             }
         
@@ -100,18 +112,18 @@ class ArticleProcessor:
             "chunks": []
         }
         
-        # Rechercher les fichiers PDF commençant par le nom de l'ingrédient
+        # Search for PDF files in the folder starting with the ingredient prefix
         prefix = f"{self.ingredient}_article_"
         pdf_files = [f for f in os.listdir(self.folder_path) 
                     if f.endswith(".pdf") and f.startswith(prefix)]
         
         if not pdf_files:
-            logger.warning(f"Aucun fichier PDF trouvé dans le dossier {self.folder_path}")
+            logger.warning(f"No PDF files found in the folder {self.folder_path}")
             results["status"] = "warning"
-            results["message"] = f"Aucun fichier PDF trouvé pour l'ingrédient {self.ingredient}."
+            results["message"] = f"No PDF files found for ingredient {self.ingredient}."
             return results
         
-        # Traiter chaque PDF
+        # Process each PDF file
         for filename in pdf_files:
             file_path = os.path.join(self.folder_path, filename)
             
@@ -122,23 +134,23 @@ class ArticleProcessor:
                 results["processed_files"] += 1
                 results["total_chunks"] += len(chunks)
             else:
-                results["errors"].append(f"Échec du traitement de {filename}")
+                results["errors"].append(f"Failed to process {filename}")
         
-        # Mise à jour du statut final
+        # Update the status based on the processing results
         if results["processed_files"] > 0:
             results["status"] = "success"
-            results["message"] = f"Traitement terminé pour {self.ingredient}. {results['processed_files']} fichiers traités, {results['total_chunks']} chunks créés."
+            results["message"] = f"Processing completed for {self.ingredient}. {results['processed_files']} files processed, {results['total_chunks']} chunks created."
         else:
             results["status"] = "error"
-            results["message"] = f"Aucun fichier n'a pu être traité pour l'ingrédient {self.ingredient}."
+            results["message"] = f"No files could be processed for ingredient {self.ingredient}."
         
         return results
 
     
 def process_downloaded_articles(ingredient, chunk_size=1000, chunk_overlap=200):
     """
-    Fonction d'utilité pour traiter les articles téléchargés pour un ingrédient.
-    Cette fonction peut être appelée directement depuis d'autres modules.
+    Utility function to process downloaded articles for a given ingredient.
+    This function can be called directly from other modules.
     """
     processor = ArticleProcessor(
         ingredient=ingredient,
@@ -153,17 +165,17 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) > 1:
-        # Obtenir l'ingrédient depuis les arguments de ligne de commande
+        # Obtain the ingredient from command line arguments
         ingredient = sys.argv[1]
         
-        print(f"Traitement des articles pour l'ingrédient: {ingredient}")
+        print(f"Processing articles for ingredient: {ingredient}")
         results = process_downloaded_articles(ingredient)
         
         # Afficher les résultats
-        print(f"Statut: {results['status']}")
+        print(f"Status: {results['status']}")
         print(f"Message: {results['message']}")
-        print(f"Fichiers traités: {results['processed_files']}")
-        print(f"Total des chunks: {results['total_chunks']}")
+        print(f"Processed files: {results['processed_files']}")
+        print(f"Total chunks: {results['total_chunks']}")
         
         if results['errors']:
             print("\nErreurs:")
@@ -171,7 +183,7 @@ if __name__ == "__main__":
                 print(f"- {error}")
                 
         if 'chunks' in results and results['chunks']:
-            print("\nPremier chunk (extrait):")
+            print("\nFirst chunk (excerpt):")
             print(results['chunks'][0].page_content[:200] + "...")
     else:
         print("Usage: python process_articles.py <ingredient>")
