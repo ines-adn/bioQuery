@@ -27,7 +27,6 @@ class SemanticScolarSearch:
         if config is None:
             config = load_config()
         
-        # Ensure config is a dictionary
         if not isinstance(config, dict):
             config = {}
 
@@ -69,6 +68,7 @@ class SemanticScolarSearch:
 
     def generate_query(self) -> str:
         """Uses the LLM to generate an optimized query for Semantic Scholar."""
+
         prompt = f"""Tu es un expert en sciences. Formule une requête Google Scholar 
         pour trouver des articles académiques sur les effets de {self.ingredient} sur le corps humain (peau, santé, ...).
         
@@ -211,10 +211,8 @@ def check_cached_articles(folder_path, ingredient):
             except (json.JSONDecodeError, IOError) as e:
                 print(f"Error reading cached metadata: {e}")
         
-        # Si pas de métadonnées valides, créer une liste basique à partir des noms de fichiers
         cached_articles = []
         for i, pdf_path in enumerate(sorted(pdf_files), 1):
-            # Extraire le nom de base sans extension
             filename = os.path.basename(pdf_path)
             title = filename.replace(f"{ingredient_underscore}_article_", "").replace(".pdf", "")
             
@@ -312,18 +310,18 @@ def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_
             search_tool = SemanticScolarSearch(ingredient, use_openai=effective_use_openai, config=config)
             query = search_tool.generate_query()
         except Exception as e:
-            print(f"Erreur lors de l'initialisation de l'outil de recherche: {e}")
-            return {"error": f"Impossible d'initialiser l'outil de recherche: {e}"}
+            print(f"Error initializing the search tool: {e}")
+            return {"error": f"Unable to initialize the search tool: {e}"}
         
         if not query:
-            return {"error": "Impossible de générer une requête de recherche"}
+            return {"error": "Unable to generate a search query"}
             
-        print(f"Requête générée: '{query}'")
+        print(f"Generated query: '{query}'")
         
         # Search for articles
         articles = search_semantic_scholar(query, num_results=3)
         if not articles:
-            return {"error": "Aucun article trouvé pour la requête donnée."}
+            return {"error": "No articles found for the given query."}
         
         # Process articles
         results = []
@@ -361,7 +359,7 @@ def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_
             results.append(result)
         
         if not results:
-            return {"error": "Aucun article valide trouvé"}
+            return {"error": "No valid articles found"}
         
         # Save metadata so it can be used as cache next time
         save_metadata(results, folder_path, ingredient)
@@ -369,6 +367,6 @@ def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_
         return results
         
     except Exception as e:
-        error_msg = f"Erreur inattendue dans search_and_download_from_semantic_scholars: {str(e)}"
+        error_msg = f"Unexpected error in search_and_download_from_semantic_scholars: {str(e)}"
         print(error_msg)
         return {"error": error_msg}
