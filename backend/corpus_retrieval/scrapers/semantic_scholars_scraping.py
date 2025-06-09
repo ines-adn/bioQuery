@@ -5,7 +5,8 @@ import time
 import json
 import os
 import glob
-from datetime import datetime
+from ...utils import load_config
+
 
 class LlamaLLM(ChatOllama):
     def __init__(self, model_name: str, temperature: float = 0.5):
@@ -29,39 +30,45 @@ class SemanticScolarSearch:
         # Ensure config is a dictionary
         if not isinstance(config, dict):
             config = {}
+
+        # ------------------ INITIALIZE LLM ------------------ #
         
-        # Déterminer automatiquement si on utilise OpenAI
+        # Detects whether to use OpenAI or Llama based on the config or environment variable
+
         if use_openai is None:
-            # D'abord vérifier la config, puis la variable d'environnement
+
+            # First check if the config has a llm_type
+            # If not, default to using OpenAI if the environment variable is set
+
             config_llm_type = config.get("llm_type", "openai")
             self.use_openai = (config_llm_type == "openai" and 
                             os.environ.get("OPENAI_API_KEY") is not None)
         else:
             self.use_openai = use_openai
             
-        # Initialiser le modèle approprié
+        # Initialize the LLM based on the use_openai flag
         if self.use_openai:
-            print(f"Utilisation d'OpenAI pour générer la requête de recherche pour {ingredient}")
+            print(f"Using OpenAI to generate the search query for {ingredient}")
             try:
-                self.llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.5)
+                self.llm = ChatOpenAI(model="gpt-4.1", temperature=0.5)
             except Exception as e:
-                print(f"Erreur lors de l'initialisation d'OpenAI: {e}")
+                print(f"Error initializing OpenAI: {e}")
                 # Fallback to Llama
                 self.use_openai = False
-                llama_model_name = config.get("ollama_model", "llama3.1")
+                llama_model_name = config.get("ollama_model", "llama3.2:3b")
                 self.llm = LlamaLLM(llama_model_name)
         else:
-            print(f"Utilisation de Llama local pour générer la requête de recherche pour {ingredient}")
-            # Charger la config depuis le fichier config.json si possible
-            llama_model_name = config.get("ollama_model", "llama3.1")
+            print(f"Using local Llama to generate the search query for {ingredient}")
+            # Load config from config.json if possible
+            llama_model_name = config.get("ollama_model", "llama3.2:3b")
             try:
                 self.llm = LlamaLLM(llama_model_name)
             except Exception as e:
-                print(f"Erreur lors de l'initialisation de Llama: {e}")
-                raise Exception(f"Impossible d'initialiser le modèle LLM: {e}")
+                print(f"Error initializing Llama: {e}")
+                raise Exception(f"Unable to initialize the LLM model: {e}")
 
     def generate_query(self) -> str:
-        """ Utilise le LLM pour générer une requête optimisée pour Google Scholar. """
+        """Uses the LLM to generate an optimized query for Semantic Scholar."""
         prompt = f"""Tu es un expert en sciences. Formule une requête Google Scholar 
         pour trouver des articles académiques sur les effets de {self.ingredient} sur le corps humain (peau, santé, ...).
         
@@ -77,10 +84,9 @@ class SemanticScolarSearch:
         
         try:
             output = self.llm.invoke(prompt)
-            # Extraire le contenu selon le type de LLM
             query = output.content.strip() if hasattr(output, 'content') else str(output).strip()
             
-            # Nettoyage de la requête
+            # Clean the query
             query = query.replace('"', '').replace("'", "").strip()
             query = ' '.join(query.split())
             
@@ -90,53 +96,15 @@ class SemanticScolarSearch:
                 
             return query
         except Exception as e:
-            print(f"Erreur lors de la génération de la requête: {e}")
+            print(f"Error generating the query: {e}")
             # Fallback query
             return f"{self.ingredient} health effects"
+        
 
-# Charger la configuration depuis le fichier config.json
-def load_config(config_file="config.json"):
-    """Load configuration from JSON file with error handling."""
-    try:
-        if not os.path.exists(config_file):
-            print(f"Le fichier {config_file} n'existe pas. Utilisation de la configuration par défaut.")
-            return {
-                "base_dir": ".",
-                "llm_type": "openai",
-                "ollama_model": "llama3.1"
-            }
-            
-        with open(config_file, "r", encoding='utf-8') as file:
-            config = json.load(file)
-            # Validate config structure
-            if not isinstance(config, dict):
-                print("Configuration invalide. Utilisation de la configuration par défaut.")
-                return {
-                    "base_dir": ".",
-                    "llm_type": "openai", 
-                    "ollama_model": "llama3.1"
-                }
-            return config
-    except json.JSONDecodeError as e:
-        print(f"Erreur lors de la lecture du fichier config.json: {e}")
-        return {
-            "base_dir": ".",
-            "llm_type": "openai",
-            "ollama_model": "llama3.1"
-        }
-    except Exception as e:
-        print(f"Erreur inattendue lors du chargement de la configuration: {e}")
-        return {
-            "base_dir": ".",
-            "llm_type": "openai",
-            "ollama_model": "llama3.1"
-        }
-
-# Télécharger le PDF
 def download_pdf(pdf_url, save_path="article.pdf"):
-    """ Télécharge un PDF à partir d'une URL. """
+    """Download a PDF from a given URL."""
     if not pdf_url:
-        print("Aucun PDF disponible pour cet article.")
+        print("No PDF available for this article.")
         return False
     
     try:
@@ -148,24 +116,23 @@ def download_pdf(pdf_url, save_path="article.pdf"):
                 for chunk in response.iter_content(chunk_size=1024):
                     if chunk:
                         file.write(chunk)
-            print(f"PDF téléchargé : {save_path}")
+            print(f"Downloaded PDF: {save_path}")
             return True
         else:
-            print(f"Impossible de télécharger le PDF. Status code: {response.status_code}")
+            print(f"Unable to download the PDF. Status code: {response.status_code}")
             return False
     except Exception as e:
-        print(f"Erreur lors du téléchargement du PDF: {e}")
+        print(f"Error downloading the PDF: {e}")
         return False
 
-# Recherche des articles sur Semantic Scholar
+
 def search_semantic_scholar(query, num_results=3):
-    """ Recherche des articles sur Semantic Scholar et retourne leurs informations. """
+    """Search for articles on Semantic Scholar and return their information."""
     
     if not query or not query.strip():
-        print("Requête vide ou invalide")
+        print("Empty or invalid query")
         return []
         
-    # URL de l'API
     API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
     params = {
         "query": query.strip(),
@@ -188,45 +155,44 @@ def search_semantic_scholar(query, num_results=3):
             if response.status_code == 200:
                 data = response.json().get("data", [])
                 if data:
-                    print(f"Trouvé {len(data)} articles pour la requête: '{query}'")
+                    print(f"Found {len(data)} articles for query: '{query}'")
                     return data
                 else:
-                    print(f"Aucun article trouvé pour la requête: '{query}'")
+                    print(f"No articles found for query: '{query}'")
                     return []
             elif response.status_code == 429:
-                print(f"Erreur 429 : Trop de requêtes. Tentative {attempt + 1}/{retries}. Attente de 60 secondes.")
+                print(f"Error 429: Too many requests. Attempt {attempt + 1}/{retries}. Waiting 60 seconds.")
                 time.sleep(60)
             else:
-                print(f"Erreur API: {response.status_code} - {response.text}")
+                print(f"API error: {response.status_code} - {response.text}")
                 break
         except requests.exceptions.Timeout:
-            print(f"Timeout lors de la requête API. Tentative {attempt + 1}/{retries}")
+            print(f"Timeout during API request. Attempt {attempt + 1}/{retries}")
         except requests.exceptions.RequestException as e:
-            print(f"Erreur de connexion: {e}")
+            print(f"Connection error: {e}")
             break
         except Exception as e:
-            print(f"Erreur inattendue lors de la recherche: {e}")
+            print(f"Unexpected error during search: {e}")
             break
     
     return []
 
 def check_cached_articles(folder_path, ingredient):
     """
-    Vérifie si des articles sont déjà téléchargés localement pour cet ingrédient.
-    
+    Checks if articles have already been downloaded locally for this ingredient.
+
     Args:
-        folder_path: Chemin vers le dossier où les articles sont stockés
-        ingredient: Nom de l'ingrédient
-        
+        folder_path: Path to the folder where articles are stored
+        ingredient: Name of the ingredient
+
     Returns:
-        list: Liste des métadonnées des articles en cache ou None si aucun cache
+        list: List of metadata for cached articles, or None if no cache is found
     """
     try:
-        # Vérifier si le dossier existe
+
         if not os.path.exists(folder_path):
             return None
         
-        # Rechercher les fichiers PDF correspondant à l'ingrédient
         ingredient_underscore = ingredient.replace(" ", "_").lower()
         pattern = os.path.join(folder_path, f"{ingredient_underscore}_article_*.pdf")
         pdf_files = glob.glob(pattern)
@@ -234,17 +200,16 @@ def check_cached_articles(folder_path, ingredient):
         if not pdf_files:
             return None
         
-        # Vérifier si un fichier de métadonnées existe
         metadata_path = os.path.join(folder_path, f"{ingredient_underscore}_metadata.json")
         if os.path.exists(metadata_path):
             try:
                 with open(metadata_path, 'r', encoding='utf-8') as f:
                     metadata = json.load(f)
                     if isinstance(metadata, list) and len(metadata) > 0:
-                        print(f"Utilisation des articles en cache pour {ingredient} ({len(metadata)} articles)")
+                        print(f"Using cached articles for {ingredient} ({len(metadata)} articles)")
                         return metadata
             except (json.JSONDecodeError, IOError) as e:
-                print(f"Erreur lors de la lecture des métadonnées en cache: {e}")
+                print(f"Error reading cached metadata: {e}")
         
         # Si pas de métadonnées valides, créer une liste basique à partir des noms de fichiers
         cached_articles = []
@@ -260,20 +225,20 @@ def check_cached_articles(folder_path, ingredient):
                 "pdf": pdf_path
             })
         
-        print(f"Utilisation des articles en cache pour {ingredient} ({len(cached_articles)} articles)")
+        print(f"Using cached articles for {ingredient} ({len(cached_articles)} articles)")
         return cached_articles
     except Exception as e:
-        print(f"Erreur lors de la vérification du cache: {e}")
+        print(f"Error checking cache: {e}")
         return None
 
 def save_metadata(metadata, folder_path, ingredient):
     """
-    Sauvegarde les métadonnées des articles téléchargés.
-    
+    Saves the metadata of the downloaded articles.
+
     Args:
-        metadata: Liste des métadonnées des articles
-        folder_path: Chemin vers le dossier où sauvegarder les métadonnées
-        ingredient: Nom de l'ingrédient
+        metadata: List of article metadata
+        folder_path: Path to the folder where metadata should be saved
+        ingredient: Name of the ingredient
     """
     try:
         ingredient_underscore = ingredient.replace(" ", "_").lower()
@@ -282,33 +247,31 @@ def save_metadata(metadata, folder_path, ingredient):
         os.makedirs(folder_path, exist_ok=True)
         with open(metadata_path, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
-        print(f"Métadonnées sauvegardées dans {metadata_path}")
+        print(f"Metadata saved in {metadata_path}")
     except Exception as e:
         print(f"Erreur lors de la sauvegarde des métadonnées: {e}")
 
 def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_openai_for_query=None):
     """
-    Lance la recherche et télécharge les articles, avec support du cache local.
-    
+    Launches the search and downloads articles, with support for local cache.
+
     Args:
-        ingredient: Nom de l'ingrédient à rechercher
-        use_cache: Utiliser le cache local si disponible
-        use_openai_for_query: Utiliser OpenAI pour générer la requête (si None, décide automatiquement)
-        
+        ingredient: Name of the ingredient to search for
+        use_cache: Use local cache if available
+        use_openai_for_query: Use OpenAI to generate the query (if None, decides automatically)
+
     Returns:
-        list: Liste des métadonnées des articles ou dict avec erreur
+        list: List of article metadata or dict with error
     """
     try:
-        # Validate input
         if not ingredient or not isinstance(ingredient, str) or not ingredient.strip():
-            return {"error": "Nom d'ingrédient invalide ou vide"}
+            return {"error": "Invalid or empty ingredient name"}
         
         ingredient = ingredient.strip()
-        
-        # Load config with error handling
+
         config = load_config()
         if not isinstance(config, dict):
-            return {"error": "Configuration invalide"}
+            return {"error": "Invalid configuration"}
 
         base_dir = config.get("base_dir", ".")
         if not base_dir:
@@ -317,39 +280,34 @@ def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_
         folder_name = ingredient.replace(" ", "_").lower()
         folder_path = os.path.join(base_dir, "backend", "data", "articles", folder_name)
         
-        # Vérifier d'abord si des articles sont déjà en cache
         if use_cache:
             cached_articles = check_cached_articles(folder_path, ingredient)
             if cached_articles and len(cached_articles) > 0:
-                # Marquer ces résultats comme provenant du cache
                 for article in cached_articles:
                     if isinstance(article, dict):
                         article["from_cache"] = True
                 return cached_articles
         
-        # Si pas de cache ou cache désactivé, procéder au scraping
         try:
             os.makedirs(folder_path, exist_ok=True)
         except Exception as e:
             print(f"Erreur lors de la création du dossier: {e}")
             return {"error": f"Impossible de créer le dossier de destination: {e}"}
         
-        # Vérifier la variable d'environnement OpenAI pour décider quel LLM utiliser
+        # Check the OpenAI environment variable to decide which LLM to use
         config_llm_type = config.get("llm_type", "openai")
         has_openai_key = os.environ.get("OPENAI_API_KEY") is not None
 
-        # Si use_openai_for_query est explicitement défini, l'utiliser
-        # Sinon, utiliser la configuration et vérifier la clé API
         if use_openai_for_query is not None:
             effective_use_openai = use_openai_for_query
         else:
             effective_use_openai = (config_llm_type == "openai" and has_openai_key)
         
-        # Log pour debug
-        print(f"[DEBUG] Variable d'environnement OPENAI_API_KEY présente: {has_openai_key}")
-        print(f"[DEBUG] Utilisation d'OpenAI pour la requête: {effective_use_openai}")
-        
-        # Initialize search tool with error handling
+        print(f"[DEBUG] OPENAI_API_KEY environment variable present: {has_openai_key}")
+        print(f"[DEBUG] Using OpenAI for query: {effective_use_openai}")
+
+        # ------------- INITALIZE THE SEMANTIC SCOLAR SEARCH TOOL ------------- #
+
         try:
             search_tool = SemanticScolarSearch(ingredient, use_openai=effective_use_openai, config=config)
             query = search_tool.generate_query()
@@ -405,7 +363,7 @@ def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_
         if not results:
             return {"error": "Aucun article valide trouvé"}
         
-        # Sauvegarder les métadonnées pour les utiliser comme cache la prochaine fois
+        # Save metadata so it can be used as cache next time
         save_metadata(results, folder_path, ingredient)
         
         return results
@@ -414,23 +372,3 @@ def search_and_download_from_semantic_scholars(ingredient, use_cache=False, use_
         error_msg = f"Erreur inattendue dans search_and_download_from_semantic_scholars: {str(e)}"
         print(error_msg)
         return {"error": error_msg}
-
-if __name__ == "__main__":
-    ingredient = input("Ingrédient : ")
-    use_cache = input("Utiliser le cache si disponible ? (o/n) : ").lower() == 'o'
-    
-    # Option pour choisir explicitement OpenAI pour la requête
-    use_openai = input("Forcer l'utilisation d'OpenAI pour la requête ? (o/n/auto) : ").lower()
-    if use_openai == "o":
-        use_openai_for_query = True
-    elif use_openai == "n":
-        use_openai_for_query = False
-    else:
-        use_openai_for_query = None  # Automatique selon la variable d'environnement
-    
-    results = search_and_download_from_semantic_scholars(
-        ingredient, 
-        use_cache=use_cache,
-        use_openai_for_query=use_openai_for_query
-    )
-    print(results)
