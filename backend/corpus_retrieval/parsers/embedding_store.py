@@ -72,13 +72,14 @@ class VectorDatabaseSetup:
             return False
 
     def setup_database(self):
-        """Checks database connectivity and prepares the necessary schema for PGVector."""
+        """Set of SQL queries that check the existence of the database, verify database connectivity, 
+        and prepare the necessary schema for PGVector."""
         try:
-            # First, ensure the database exists
+            # Ensure the database exists
             if not self.create_database_if_not_exists():
                 return False
             
-            # Now connect to our target database
+            # Connect to target database
             conn = psycopg2.connect(self.get_connection_string())
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             cursor = conn.cursor()
@@ -89,7 +90,7 @@ class VectorDatabaseSetup:
             # Check if the pgvector extension is installed
             cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
             
-            # Create the collections table with the correct structure (matching PGVector's expectations)
+            # Create the collections table with the correct structure (according to PGVector)
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS langchain_pg_collection (
                 uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -98,7 +99,7 @@ class VectorDatabaseSetup:
             )   
             """)
             
-            # Create the embeddings table with the correct structure (matching PGVector's expectations)
+            # Create the embeddings table with the correct structure (according to PGVector)
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS langchain_pg_embedding (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -155,7 +156,7 @@ class EmbeddingManager:
         collection_name = ingredient.lower().replace(" ", "_").replace("-", "_")
         return f"collection_{collection_name}"
     
-    def store_chunks(self, chunks: List[Document], ingredient: str, overwrite: bool = False) -> Dict[str, Any]:
+    def store_chunks_and_embeddings(self, chunks: List[Document], ingredient: str, overwrite: bool = False) -> Dict[str, Any]:
         """
         Transforms the chunks into embeddings and stores them in the vector database.
 
@@ -198,8 +199,6 @@ class EmbeddingManager:
                 use_jsonb=True,
                 pre_delete_collection=overwrite
             )
-            
-            # Note: from_documents already adds the documents, so we don't need to call add_documents again
             
             end_time = time.time()
             processing_time = round(end_time - start_time, 2)
@@ -354,7 +353,7 @@ def store_article_chunks(chunks: List[Document], ingredient: str, overwrite: boo
         Results of the storage operation
     """
     manager = EmbeddingManager(config_file)
-    return manager.store_chunks(chunks, ingredient, overwrite)
+    return manager.store_chunks_and_embeddings(chunks, ingredient, overwrite)
 
 
 def process_and_store_ingredient(ingredient: str, overwrite: bool = False) -> Dict[str, Any]:
