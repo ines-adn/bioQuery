@@ -7,8 +7,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_postgres import PGVector
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from article_chunker import process_downloaded_articles
-from utils import load_config
+from .article_chunker import process_downloaded_articles
+from .utils import load_config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -42,27 +42,78 @@ class VectorDatabaseSetup:
         else:
             return f"postgresql://{auth}@{params['host']}:{params['port']}"
     
+    def create_database_if_not_exists(self):
+        """Create the database if it doesn't exist."""
+        try:
+            dbname = self.db_config.get("database", "vectordb")
+            
+            # Connect to the default 'postgres' database to create our target database
+            conn = psycopg2.connect(self.get_connection_string(include_dbname=False) + "/postgres")
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            cursor = conn.cursor()
+            
+            # Check if the database exists
+            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (dbname,))
+            exists = cursor.fetchone()
+            
+            if not exists:
+                # Create the database
+                cursor.execute(f'CREATE DATABASE "{dbname}"')
+                logger.info(f"Database '{dbname}' created successfully.")
+            else:
+                logger.info(f"Database '{dbname}' already exists.")
+            
+            cursor.close()
+            conn.close()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creating database: {e}")
+            return False
+
     def setup_database(self):
         """Checks database connectivity and prepares the necessary schema for PGVector."""
         try:
-            # Connects to the existing PostgreSQL database
+            # First, ensure the database exists
+            if not self.create_database_if_not_exists():
+                return False
+            
+            # Now connect to our target database
             conn = psycopg2.connect(self.get_connection_string())
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             cursor = conn.cursor()
             
-            # Checks that the connection is successful
+            # Check that the connection is successful
             cursor.execute("SELECT 1")
             
-            # Checks if the pgvector extension is installed
+            # Check if the pgvector extension is installed
             cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
             
-            # Create a table for collections with an explicit uuid column
+            # Create the collections table with the correct structure (matching PGVector's expectations)
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS langchain_pg_collection (
                 uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                collection_name TEXT UNIQUE,
+                name TEXT UNIQUE NOT NULL,
                 cmetadata JSONB
             )   
+            """)
+            
+            # Create the embeddings table with the correct structure (matching PGVector's expectations)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS langchain_pg_embedding (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                collection_id UUID REFERENCES langchain_pg_collection(uuid) ON DELETE CASCADE,
+                embedding vector,
+                document TEXT,
+                cmetadata JSONB
+            )
+            """)
+            
+            # Create an index on the embedding column for better performance
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS langchain_pg_embedding_embedding_idx 
+            ON langchain_pg_embedding USING ivfflat (embedding vector_cosine_ops)
+            WITH (lists = 100)
             """)
             
             conn.commit()
@@ -119,7 +170,7 @@ class EmbeddingManager:
         if not chunks:
             return {
                 "status": "error",
-                "message": "Aucun chunk à stocker.",
+                "message": "No chunks to store.",
                 "ingredient": ingredient,
                 "stored_chunks": 0
             }
@@ -148,8 +199,7 @@ class EmbeddingManager:
                 pre_delete_collection=overwrite
             )
             
-            # Add documents to the vectorstore
-            vectorstore.add_documents(chunks)
+            # Note: from_documents already adds the documents, so we don't need to call add_documents again
             
             end_time = time.time()
             processing_time = round(end_time - start_time, 2)
@@ -191,16 +241,18 @@ class EmbeddingManager:
             table_exists = cursor.fetchone()[0]
             
             if not table_exists:
-                logger.info("La table langchain_pg_collection n'existe pas encore.")
+                logger.info("The langchain_pg_collection table does not exist yet.")
+                cursor.close()
+                conn.close()
                 return []
             
-            cursor.execute("SELECT collection_name FROM langchain_pg_collection")
+            cursor.execute("SELECT name FROM langchain_pg_collection")
             collections = [row[0] for row in cursor.fetchall()]
             cursor.close()
             conn.close()
             return collections
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération des collections: {e}")
+            logger.error(f"Error retrieving collections: {e}")
             return []
     
     def get_collection_info(self, collection_name: str) -> Dict[str, Any]:
@@ -220,42 +272,42 @@ class EmbeddingManager:
             table_exists = cursor.fetchone()[0]
             
             if not table_exists:
+                cursor.close()
+                conn.close()
                 return {
                     "status": "error",
-                    "message": "La table des collections n'existe pas encore.",
+                    "message": "The collections table does not exist yet.",
                     "collection_name": collection_name
                 }
             
-            # Check if the collection exists
-            cursor.execute("SELECT 1 FROM langchain_pg_collection WHERE name = %s", (collection_name,))
-            exists = cursor.fetchone()
+            # Check if the collection exists (using column name 'name')
+            cursor.execute("SELECT uuid, cmetadata FROM langchain_pg_collection WHERE name = %s", (collection_name,))
+            collection_row = cursor.fetchone()
             
-            if not exists:
+            if not collection_row:
+                cursor.close()
+                conn.close()
                 return {
                     "status": "error",
                     "message": f"The collection {collection_name} does not exist.",
                     "collection_name": collection_name
                 }
             
-            # Gather metadata for the collection
-            cursor.execute("SELECT cmetadata FROM langchain_pg_collection WHERE name = %s", (collection_name,))
-            metadata_row = cursor.fetchone()
-            metadata = metadata_row[0] if metadata_row else {}
+            collection_uuid, metadata = collection_row
             
-            # The embedding table name may differ depending on the version of langchain_postgres
-            # Try to dynamically determine the embedding table name
-            embedding_table_name = f"langchain_pg_embedding_{collection_name}"
-            alt_embedding_table_name = f"langchain_embedding_{collection_name}"
-            
-            # Check which embedding table exists
+            # Check if the embeddings table exists
             cursor.execute("""
-                SELECT table_name FROM information_schema.tables 
-                WHERE table_name IN (%s, %s)
-            """, (embedding_table_name, alt_embedding_table_name))
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'langchain_pg_embedding'
+                )
+            """)
             
-            table_result = cursor.fetchone()
+            embedding_table_exists = cursor.fetchone()[0]
             
-            if not table_result:
+            if not embedding_table_exists:
+                cursor.close()
+                conn.close()
                 return {
                     "status": "success",
                     "collection_name": collection_name,
@@ -264,10 +316,8 @@ class EmbeddingManager:
                     "note": "The collection exists but the embedding table was not found."
                 }
             
-            actual_table_name = table_result[0]
-            
             # Count the number of documents in the collection
-            cursor.execute(f"SELECT COUNT(*) FROM {actual_table_name}")
+            cursor.execute("SELECT COUNT(*) FROM langchain_pg_embedding WHERE collection_id = %s", (collection_uuid,))
             count = cursor.fetchone()[0]
             
             cursor.close()
@@ -281,10 +331,10 @@ class EmbeddingManager:
             }
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération des informations sur la collection {collection_name}: {e}")
+            logger.error(f"Error retrieving information for collection {collection_name}: {e}")
             return {
                 "status": "error",
-                "message": f"Erreur: {str(e)}",
+                "message": f"Error: {str(e)}",
                 "collection_name": collection_name
             }
 
@@ -334,7 +384,7 @@ def process_and_store_ingredient(ingredient: str, overwrite: bool = False) -> Di
     # Get the chunks from the processing results
     chunks = processing_results.get("chunks", [])
     
-    # Stock the chunks in the vector database
+    # Store the chunks in the vector database
     embedding_results = store_article_chunks(chunks, ingredient, overwrite)
     
     # Combine the results
