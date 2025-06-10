@@ -11,7 +11,7 @@ from langchain_openai import ChatOpenAI
 
 # Import required functions from other modules
 from ..parsers.embedding_store import EmbeddingManager
-from ...utils import load_config
+from utils import load_config
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

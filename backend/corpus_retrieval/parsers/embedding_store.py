@@ -7,7 +7,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from .article_chunker import process_downloaded_articles
-from ...utils import load_config
+from utils import load_config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

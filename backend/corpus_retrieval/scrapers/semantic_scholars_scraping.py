@@ -5,7 +5,7 @@ import time
 import json
 import os
 import glob
-from ...utils import load_config
+from utils import load_config
 
 
 class LlamaLLM(ChatOllama):
