@@ -4,6 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
 from fastapi import APIRouter
+from corpus_retrieval.summarizers.llama_summarizer import generate_ingredient_summary
+from corpus_retrieval.summarizers.llama_summarizer import LLM_TYPE_OPENAI, LLM_TYPE_OLLAMA
+
+# Importer les modules pour le traitement des PDFs et la création d'embeddings
+from corpus_retrieval.parsers.article_chunker import process_downloaded_articles
+from corpus_retrieval.parsers.embedding_store import store_article_chunks
+
 
 # Vérifier la variable d'environnement OpenAI au démarrage
 has_openai_key = os.environ.get("OPENAI_API_KEY") is not None
@@ -13,12 +20,7 @@ else:
     print("ATTENTION: Variable d'environnement OPENAI_API_KEY non détectée.")
 
 # Importer les modules nécessaires pour le traitement complet
-from corpus_retrieval.summarizers.llama_summarizer import generate_ingredient_summary
-from corpus_retrieval.summarizers.llama_summarizer import LLM_TYPE_OPENAI, LLM_TYPE_OLLAMA
 
-# Importer les modules pour le traitement des PDFs et la création d'embeddings
-from corpus_retrieval.parsers.article_chunker import process_downloaded_articles
-from corpus_retrieval.parsers.embedding_store import store_article_chunks
 
 # Point d'entrée du backend
 app = FastAPI()
