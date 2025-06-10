@@ -213,8 +213,6 @@ def check_cached_articles(folder_path, ingredient):
         
         cached_articles = []
         for i, pdf_path in enumerate(sorted(pdf_files), 1):
-            filename = os.path.basename(pdf_path)
-            title = filename.replace(f"{ingredient_underscore}_article_", "").replace(".pdf", "")
             
             cached_articles.append({
                 "number": i,

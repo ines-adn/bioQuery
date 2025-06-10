@@ -4,7 +4,6 @@ import time
 
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_postgres import PGVector
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from .article_chunker import process_downloaded_articles
@@ -189,17 +188,7 @@ class EmbeddingManager:
         start_time = time.time()
         
         try:
-            conn_string = self.db_setup.get_connection_string()
-            
-            vectorstore = PGVector.from_documents(
-                documents=chunks,  
-                embedding=self.embedding_model,
-                collection_name=collection_name,
-                connection=conn_string,
-                use_jsonb=True,
-                pre_delete_collection=overwrite
-            )
-            
+
             end_time = time.time()
             processing_time = round(end_time - start_time, 2)
             
