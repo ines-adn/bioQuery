@@ -9,11 +9,9 @@ from langchain_core.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
-# Import required functions from other modules
 from ..parsers.embedding_store import EmbeddingManager
 from utils import load_config
 
-# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -74,7 +72,7 @@ class IngredientSummarizer:
                         temperature=self.temperature
                     )
                     logger.info(f"OpenAI model {self.openai_model} loaded successfully.")
-                else:  # Default to Ollama
+                else:  # Default to Ollama (Free Use)
                     self._llm = LlamaLLM(
                         model_name=self.ollama_model, 
                         temperature=self.temperature
@@ -530,7 +528,6 @@ class IngredientSummarizer:
         
         try:
             # Create the summaries directory if it does not exist
-            import os
             summary_dir = os.path.join(self.config.get("base_dir", ""), "backend", "data", "summaries")
             os.makedirs(summary_dir, exist_ok=True)
             
