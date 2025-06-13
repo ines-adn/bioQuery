@@ -14,7 +14,7 @@
     "placeholder": "Entrez un composant, un ingrédient...",
     "button": "Explorer",
     "error": "Veuillez entrer un composant ou un ingrédient",
-    "noArticlesFound": "Aucun article scientifique trouvé pour cet ingrédient.",
+    "noArticlesFound": "Une erreur s'est produite. Merci de réessayer.",
     "status": {
       "starting": "Recherche en cours...",
       "searching": "Recherche d'articles scientifiques... (cela peut prendre 2 à 3 minutes)",
