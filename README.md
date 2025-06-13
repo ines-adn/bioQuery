@@ -227,7 +227,7 @@ curl "http://localhost:8000/search/complete/?ingredient=aloe%20vera&language=en&
 
 ### Basic Usage
 
-[🎥 Watch Demo Video](demo_bq.mov)
+![Demo](demo.gif)
 
 ## 🔍 How It Works
 
