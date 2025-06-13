@@ -1,9 +1,11 @@
 import logging
 from typing import List, Dict, Any
 import time
+import json
 
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_postgres import PGVector
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from .article_chunker import process_downloaded_articles
@@ -89,31 +91,14 @@ class VectorDatabaseSetup:
             # Check if the pgvector extension is installed
             cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
             
-            # Create the collections table with the correct structure (according to PGVector)
+            # Create the collections table with the correct structure
+            # Using 'name' column as per LangChain standard
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS langchain_pg_collection (
                 uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name TEXT UNIQUE NOT NULL,
                 cmetadata JSONB
             )   
-            """)
-            
-            # Create the embeddings table with the correct structure (according to PGVector)
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS langchain_pg_embedding (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                collection_id UUID REFERENCES langchain_pg_collection(uuid) ON DELETE CASCADE,
-                embedding vector,
-                document TEXT,
-                cmetadata JSONB
-            )
-            """)
-            
-            # Create an index on the embedding column for better performance
-            cursor.execute("""
-            CREATE INDEX IF NOT EXISTS langchain_pg_embedding_embedding_idx 
-            ON langchain_pg_embedding USING ivfflat (embedding vector_cosine_ops)
-            WITH (lists = 100)
             """)
             
             conn.commit()
@@ -188,7 +173,19 @@ class EmbeddingManager:
         start_time = time.time()
         
         try:
-
+            # Initialize PGVector with the embedding model using the correct syntax
+            # This creates the vector store AND adds the documents in one step
+            vector_store = PGVector.from_documents(
+                documents=chunks,  
+                embedding=self.embedding_model,
+                collection_name=collection_name,
+                connection=self.connection_string,
+                use_jsonb=True,
+                pre_delete_collection=overwrite
+            )
+            
+            # Note: No need to call add_documents() again since from_documents() already does this
+            
             end_time = time.time()
             processing_time = round(end_time - start_time, 2)
             
@@ -268,7 +265,7 @@ class EmbeddingManager:
                     "collection_name": collection_name
                 }
             
-            # Check if the collection exists (using column name 'name')
+            # Check if the collection exists (using column name 'name' - the standard LangChain column)
             cursor.execute("SELECT uuid, cmetadata FROM langchain_pg_collection WHERE name = %s", (collection_name,))
             collection_row = cursor.fetchone()
             
