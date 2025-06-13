@@ -18,7 +18,7 @@ interface Summary {
   language?: string;
 }
 
-// Mise à jour de la structure de réponse pour la nouvelle API
+// Update response structure for the new API
 interface SearchResponse {
   status: string;
   message: string;
@@ -121,7 +121,7 @@ function App() {
   setLoading(true);
   setSearchStatus(t('search.status.starting')); // "Recherche en cours..."
   
-  // Ne pas effacer le résumé actuel immédiatement lors du changement de langue
+  // Do not clear the current summary immediately when changing language
   if (!lang) {
     setSummary(null);
     setResults(null);
@@ -149,7 +149,7 @@ function App() {
         return;
       }
       
-      // Extraire le résumé et les résultats
+      // Extract summary and results
       if (data.summary) {
         setSummary(data.summary);
         if (data.summary.language) {
@@ -157,7 +157,7 @@ function App() {
         }
       }
       
-      // Mettre à jour les résultats seulement si on ne change pas juste la langue
+      // Only update results if we're not just changing the summary language
       if (!lang && data.semantic_results) {
         setResults(data.semantic_results);
       }
@@ -188,11 +188,11 @@ function App() {
   }
 };
 
-  // Fonction pour changer la langue du résumé
+  // Function to change the summary language
   const handleSummaryLanguageChange = (language: string) => {
     if (summaryLanguage !== language) {
       setSummaryLanguage(language);
-      // Régénérer le résumé avec la nouvelle langue
+      // Regenerate the summary with the new language
       handleSearch(language);
     }
   };
@@ -356,12 +356,12 @@ function App() {
               </div>
             </div>
             
-            {/* Affichage du résumé */}
+            {/* Display summary */}
             {summary && (
               <div className="summary-container">
                 <h3>{t('results.summary', { ingredient })}</h3>
                 
-                {/* Sélecteur de langue pour le résumé */}
+                {/* Summary language selector */}
                 <SummaryLanguageSelector 
                   currentLanguage={summaryLanguage}
                   onLanguageChange={handleSummaryLanguageChange}
@@ -384,7 +384,7 @@ function App() {
               </div>
             )}
             
-            {/* Affichage des articles */}
+            {/* Articles source display */}
             {results && results.length > 0 && (
               <>
                 <p className="results-intro">

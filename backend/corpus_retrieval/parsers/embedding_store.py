@@ -1,7 +1,6 @@
 import logging
 from typing import List, Dict, Any
 import time
-import json
 
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings

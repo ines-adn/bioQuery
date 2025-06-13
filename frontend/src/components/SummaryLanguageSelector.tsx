@@ -15,10 +15,10 @@ const SummaryLanguageSelector: React.FC<SummaryLanguageSelectorProps> = ({
 }) => {
   const { t } = useTranslation('common');
   
-  // Log de débogage pour vérifier la langue actuelle
+  // Debug log to check the current language
   console.log("Langue du résumé actuelle:", currentLanguage);
   
-  // Assurez-vous que la langue actuelle est l'une des valeurs valides
+  // Ensure the current language is one of the valid values
   const normalizedLanguage = currentLanguage === 'en' ? 'en' : 'fr';
   
   return (
