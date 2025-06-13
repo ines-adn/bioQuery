@@ -36,7 +36,7 @@ bioQuery implements Retrieval-Augmented Generation (RAG) to provide accurate, re
 This approach ensures that summaries are factual, up-to-date, and traceable to specific research sources, making bioQuery more reliable than traditional AI assistants for scientific information.
 
 
-
+![alt text](image.png)
 
 ## 🏗️ Architecture
 
@@ -238,16 +238,6 @@ curl "http://localhost:8000/search/complete/?ingredient=aloe%20vera&language=en&
 5. **Storage**: Stores embeddings in PostgreSQL with pgvector for efficient similarity search
 6. **Summary Generation**: LLM synthesizes information from relevant chunks into coherent summaries
 
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 
 ## ⚠️ Important Notes
 
@@ -271,13 +261,6 @@ We welcome contributions! Please follow these steps:
 **Memory Issues with Ollama**
 - Reduce `max_chunks_ollama` parameter
 - Use smaller model variants (e.g., `llama3.2:3b`)
-
-## 📊 Performance Tips
-
-- Enable caching for repeated queries
-- Use smaller chunk sizes for faster processing
-- Consider using OpenAI for production workloads
-- Implement horizontal scaling for high-volume usage
 
 ## 🔮 Future Enhancements
 
