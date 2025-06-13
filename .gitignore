@@ -1,5 +1,5 @@
 # Ignore config
-backend/config.py
+backend/config.json
 
 # Ignore environment files
 .DS_Store
