@@ -1,6 +1,7 @@
-# Ignorer les fichiers de configuration
+# Ignore config
+backend/config.py
 
-# Ignorer les fichiers d'environnement
+# Ignore environment files
 .DS_Store
 */__pycache__/*
 backend/__pycache__
@@ -9,12 +10,12 @@ __pycache__/
 /venv
 __pycache__/
 
-# Ignorer les corpus de texte
+# Ignore text corpora
 data/
 articles/
 
-# Ignorer les fichiers ipynb
+# Ignore ipynb files
 *.ipynb
 
-# Ignorer les modules Node.js
+# Ignore Node.js modules
 node_modules/
